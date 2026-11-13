@@ -1,0 +1,17 @@
+# сборка
+bin/
+obj/
+dist/
+*_wpftmp.csproj
+*.zip
+
+# IDE
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+
+# прочее
+*.log
+Thumbs.db

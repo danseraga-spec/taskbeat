@@ -1,0 +1,121 @@
+<UserControl x:Class="CoolPlayer.VkPage"
+             x:ClassModifier="internal"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Grid Margin="26,6,18,0">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition/>
+        </Grid.RowDefinitions>
+
+        <!-- шапка -->
+        <DockPanel x:Name="Header" Margin="6,0,8,12">
+            <Button x:Name="BackBtn" DockPanel.Dock="Left" Style="{StaticResource Icon}" Content="&#xE72B;" ToolTip="К плейлистам"
+                    Click="BackClick" Visibility="Collapsed" Margin="0,0,8,0"/>
+            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                <Button x:Name="ShuffleAllBtn" Style="{StaticResource PillAccent}" Click="ShuffleAllClick" Margin="8,0,0,0">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="&#xE8B1;" FontFamily="{StaticResource Icons}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                        <TextBlock Text="Перемешать"/>
+                    </StackPanel>
+                </Button>
+                <Button Style="{StaticResource Icon}" Content="&#xE72C;" ToolTip="Обновить" Click="RefreshClick" Margin="6,0,0,0"/>
+            </StackPanel>
+            <TextBox x:Name="SearchBox" Style="{StaticResource Search}" Tag="Исполнитель, трек или альбом" Width="440"
+                     HorizontalAlignment="Left" KeyDown="SearchKey" Visibility="Collapsed"/>
+            <TextBlock x:Name="SubTitle" Foreground="{StaticResource Fg2}" FontSize="13" VerticalAlignment="Center"/>
+        </DockPanel>
+
+        <!-- треки -->
+        <ListBox x:Name="Tracks" Grid.Row="1" Background="Transparent" BorderThickness="0" Padding="0,0,8,12"
+                 ItemContainerStyle="{StaticResource TrackRow}"
+                 VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling"
+                 VirtualizingPanel.ScrollUnit="Pixel" ScrollViewer.CanContentScroll="True"
+                 ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                 PreviewMouseLeftButtonUp="TrackClick" KeyDown="TrackKey" PreviewMouseRightButtonUp="TrackRightClick">
+            <ListBox.ItemTemplate>
+                <DataTemplate>
+                    <Grid Height="46">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="46"/>
+                            <ColumnDefinition/>
+                            <ColumnDefinition Width="64"/>
+                            <ColumnDefinition Width="40"/>
+                        </Grid.ColumnDefinitions>
+                        <Border Width="42" Height="42" CornerRadius="8" Background="#18181C" HorizontalAlignment="Left">
+                            <Grid>
+                                <TextBlock Text="&#xEC4F;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="14" Foreground="#4A4A52"
+                                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                <Border CornerRadius="8">
+                                    <Border.Background>
+                                        <ImageBrush ImageSource="{Binding Cover, TargetNullValue={x:Null}}" Stretch="UniformToFill"/>
+                                    </Border.Background>
+                                </Border>
+                            </Grid>
+                        </Border>
+                        <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="12,0,8,0">
+                            <TextBlock Text="{Binding Title}" FontSize="14" Foreground="White" TextTrimming="CharacterEllipsis"/>
+                            <TextBlock Text="{Binding Artist}" FontSize="12.5" Foreground="#9A9AA3" TextTrimming="CharacterEllipsis" Margin="0,2,0,0"/>
+                        </StackPanel>
+                        <TextBlock Grid.Column="2" Text="{Binding DurationText}" FontSize="12.5" Foreground="#9A9AA3"
+                                   HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                        <Button Grid.Column="3" Style="{StaticResource Icon}" Content="&#xE712;" ToolTip="Ещё" Click="MoreClick"
+                                Width="34" Height="34" FontSize="14"/>
+                    </Grid>
+                </DataTemplate>
+            </ListBox.ItemTemplate>
+        </ListBox>
+
+        <!-- плейлисты -->
+        <ScrollViewer x:Name="PlaylistScroll" Grid.Row="1" VerticalScrollBarVisibility="Auto" Visibility="Collapsed">
+            <ItemsControl x:Name="Playlists" Margin="0,0,0,16">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <WrapPanel/>
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Border Width="176" Margin="6,0,10,18" Background="Transparent" Cursor="Hand" MouseLeftButtonUp="PlaylistClick">
+                            <StackPanel>
+                                <Border Width="176" Height="176" CornerRadius="14" Background="#141417">
+                                    <Grid>
+                                        <TextBlock Text="&#xE90B;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="34" Foreground="#3A3A42"
+                                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        <Border CornerRadius="14">
+                                            <Border.Background>
+                                                <ImageBrush ImageSource="{Binding Cover, TargetNullValue={x:Null}}" Stretch="UniformToFill"/>
+                                            </Border.Background>
+                                        </Border>
+                                    </Grid>
+                                </Border>
+                                <TextBlock Text="{Binding Title}" FontSize="14" FontWeight="SemiBold" Foreground="White" Margin="2,10,0,0" TextTrimming="CharacterEllipsis"/>
+                                <TextBlock Text="{Binding CountText}" FontSize="12" Foreground="#9A9AA3" Margin="2,2,0,0"/>
+                            </StackPanel>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
+
+        <!-- вход -->
+        <Border x:Name="LoginCard" Grid.Row="1" Visibility="Collapsed" HorizontalAlignment="Center" VerticalAlignment="Center"
+                Background="#0F0F12" CornerRadius="22" Padding="40,34" MaxWidth="520">
+            <StackPanel>
+                <Border Width="64" Height="64" CornerRadius="18" Background="#0077FF" HorizontalAlignment="Left">
+                    <TextBlock Text="VK" FontSize="26" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                </Border>
+                <TextBlock Text="Войдите в VK" FontSize="24" FontWeight="SemiBold" Margin="0,18,0,8"/>
+                <TextBlock TextWrapping="Wrap" Foreground="{StaticResource Fg2}" FontSize="13.5" LineHeight="20"
+                           Text="Войдите по QR-коду с телефона или по логину и паролю. Taskbeat хранит только зашифрованный ключ доступа — пароль нигде не сохраняется."/>
+                <TextBlock TextWrapping="Wrap" Foreground="#C9A64A" FontSize="12.5" Margin="0,12,0,0" LineHeight="18"
+                           Text="Важно: у VK нет открытого API для музыки, поэтому Taskbeat входит как стороннее мобильное приложение. Это неофициальный способ — VK может в любой момент отключить его, а для аккаунта есть риск ограничений. Используйте на свой страх и риск."/>
+                <Button Style="{StaticResource PillAccent}" Content="Войти через VK" HorizontalAlignment="Left" Margin="0,22,0,0"
+                        Padding="22,10" Click="LoginClick"/>
+            </StackPanel>
+        </Border>
+
+        <TextBlock x:Name="Status" Grid.Row="1" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="14"
+                   Foreground="{StaticResource Fg2}" TextWrapping="Wrap" TextAlignment="Center" MaxWidth="460"/>
+    </Grid>
+</UserControl>

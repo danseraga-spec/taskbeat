@@ -1,0 +1,7 @@
+name = "taskbeat-feedback"
+main = "worker.js"
+compatibility_date = "2025-06-01"
+
+# секреты задаются командами (не храните их в этом файле):
+#   npx wrangler secret put BOT_TOKEN
+#   npx wrangler secret put CHAT_ID
