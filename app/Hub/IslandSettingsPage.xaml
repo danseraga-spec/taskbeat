@@ -56,6 +56,12 @@
                                   IsEnabled="{Binding WinNotifications}"/>
                         <TextBlock Text="Уведомления остаются в центре уведомлений Windows. При выходе из Taskbeat всплывающие окна возвращаются."
                                    Opacity="0.65" TextWrapping="Wrap" Margin="24,2,0,0"/>
+                        <CheckBox Content="Загрузки файлов (браузеры и Taskbeat)" IsChecked="{Binding IslandDownloads}"/>
+                        <CheckBox Content="Заряд Bluetooth-наушников при подключении" IsChecked="{Binding IslandBtBattery}"/>
+                        <CheckBox Content="Изменение громкости" IsChecked="{Binding IslandVolume}"/>
+                        <CheckBox Content="Строка текста песни вместо обложки с эквалайзером" IsChecked="{Binding IslandLyrics}"/>
+                        <TextBlock Text="Таймер, помодоро и секундомер — в меню по правому клику на острове."
+                                   Opacity="0.65" TextWrapping="Wrap" Margin="0,2,0,6"/>
                         <CheckBox Content="Звук напоминаний" IsChecked="{Binding ReminderSound}"/>
 
                         <TextBlock Text="Система" FontSize="18" FontWeight="SemiBold" Margin="0,26,0,8"/>

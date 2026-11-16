@@ -22,6 +22,154 @@ internal partial class AppSettingsPage : UserControl
         AppHost.Vk.AuthChanged += () => Dispatcher.InvokeAsync(UpdateVk);
         PreviewKeyDown += CaptureKey;
         UpdateVk();
+        AutoUpdate.IsChecked = SettingsStore.Current.AutoUpdateCheck;
+        UpdateIntegrations();
+        BuildLook();
+        LastFm.Changed += () => Dispatcher.InvokeAsync(UpdateIntegrations);
+        AskCrash.IsChecked = SettingsStore.Current.AskCrashReports;
+        InstallBtn.Visibility = Installer.IsInstalled ? Visibility.Collapsed : Visibility.Visible;
+        InstallBtn.ToolTip = L.T("Скопировать в папку программ, добавить в меню «Пуск» и в список приложений Windows");
+        if (Updater.Available is { } a) UpdateStatus.Text = L.F("Доступна версия {0}", a.Version.ToString(3));
+    }
+
+    // ------------------------------------------------------------------ оформление
+
+    bool lookSync;
+
+    void BuildLook()
+    {
+        lookSync = true;
+        var s = SettingsStore.Current;
+        foreach (var (k, n) in new[] { ("dark", L.T("Тёмная")), ("light", L.T("Светлая")), ("system", L.T("Как в Windows")) })
+            ThemeBox.Items.Add(new ComboBoxItem { Content = n, Tag = k, IsSelected = s.Theme == k });
+        foreach (var (k, n) in new[] { ("auto", L.T("Как в системе") + " / System"), ("ru", L.T("Русский")), ("en", "English") })
+            LangBox.Items.Add(new ComboBoxItem { Content = n, Tag = k, IsSelected = s.Language == k });
+        foreach (var (key, name, hex) in Themes.Accents)
+        {
+            var c = (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(hex);
+            var b = new Button
+            {
+                Width = 30, Height = 30, Margin = new Thickness(0, 0, 10, 6), ToolTip = L.T(name), Tag = hex, Cursor = System.Windows.Input.Cursors.Hand,
+                Template = SwatchTemplate(),
+                Background = new System.Windows.Media.SolidColorBrush(c),
+                BorderThickness = new Thickness(string.Equals(s.AccentColor, hex, StringComparison.OrdinalIgnoreCase) ? 3 : 0),
+            };
+            b.SetResourceReference(BorderBrushProperty, "Fg");
+            b.Click += (_, _) =>
+            {
+                SettingsStore.Current.AccentColor = hex;
+                SettingsStore.Touch();
+                foreach (Button x in AccentPanel.Children) x.BorderThickness = new Thickness((string)x.Tag == hex ? 3 : 0);
+                RestartRow.Visibility = Visibility.Visible;
+            };
+            AccentPanel.Children.Add(b);
+        }
+        StripSlider.Value = s.StripThickness;
+        StripValue.Text = $"{s.StripThickness}";
+        StripAccent.IsChecked = s.StripColor == "accent";
+        lookSync = false;
+    }
+
+    static ControlTemplate SwatchTemplate()
+    {
+        var t = new ControlTemplate(typeof(Button));
+        var border = new FrameworkElementFactory(typeof(Border));
+        border.SetValue(Border.CornerRadiusProperty, new CornerRadius(15));
+        border.SetBinding(Border.BackgroundProperty, new System.Windows.Data.Binding("Background") { RelativeSource = System.Windows.Data.RelativeSource.TemplatedParent });
+        border.SetBinding(Border.BorderBrushProperty, new System.Windows.Data.Binding("BorderBrush") { RelativeSource = System.Windows.Data.RelativeSource.TemplatedParent });
+        border.SetBinding(Border.BorderThicknessProperty, new System.Windows.Data.Binding("BorderThickness") { RelativeSource = System.Windows.Data.RelativeSource.TemplatedParent });
+        t.VisualTree = border;
+        return t;
+    }
+
+    void ThemeChanged(object s, SelectionChangedEventArgs e)
+    {
+        if (lookSync || ThemeBox.SelectedItem is not ComboBoxItem { Tag: string k }) return;
+        SettingsStore.Current.Theme = k;
+        SettingsStore.Save();
+        RestartRow.Visibility = Visibility.Visible;
+    }
+
+    void LangChanged(object s, SelectionChangedEventArgs e)
+    {
+        if (lookSync || LangBox.SelectedItem is not ComboBoxItem { Tag: string k }) return;
+        SettingsStore.Current.Language = k;
+        SettingsStore.Save();
+        RestartRow.Visibility = Visibility.Visible;
+    }
+
+    void RestartClick(object s, RoutedEventArgs e) => AppHost.Restart();
+
+    void StripChanged(object s, RoutedPropertyChangedEventArgs<double> e)
+    {
+        if (StripValue == null) return;
+        StripValue.Text = $"{(int)e.NewValue}";
+        if (lookSync) return;
+        SettingsStore.Current.StripThickness = (int)e.NewValue;
+        SettingsStore.Touch();
+    }
+
+    void StripAccentClick(object s, RoutedEventArgs e)
+    {
+        SettingsStore.Current.StripColor = StripAccent.IsChecked == true ? "accent" : "cover";
+        SettingsStore.Touch();
+    }
+
+    void UpdateIntegrations()
+    {
+        LastFmConnect.IsEnabled = LastFm.Configured;
+        LastFmConnect.Content = LastFm.Connected ? L.T("Отключить") : L.T("Подключить");
+        LastFmText.Text = !LastFm.Configured ? L.T("В этой сборке Last.fm не настроен.")
+            : LastFm.Connected ? L.F("Скробблинг включён: {0}", LastFm.User)
+            : L.T("Отмечать прослушанные треки в вашем профиле Last.fm.");
+        Discord.IsEnabled = DiscordPresence.Configured;
+        Discord.IsChecked = SettingsStore.Current.DiscordPresence;
+        DiscordText.Text = DiscordPresence.Configured
+            ? L.T("Название трека и исполнитель появятся в профиле, пока Discord для компьютера запущен.")
+            : L.T("В этой сборке Discord не настроен.");
+    }
+
+    async void LastFmConnectClick(object s, RoutedEventArgs e)
+    {
+        if (LastFm.Connected) { LastFm.Disconnect(); return; }
+        LastFmConnect.IsEnabled = false;
+        var err = await LastFm.BeginConnectAsync();
+        LastFmConnect.IsEnabled = true;
+        if (err != null) { LastFmText.Text = err; return; }
+        LastFmDone.Visibility = Visibility.Visible;
+        LastFmText.Text = L.T("В браузере откроется Last.fm — нажмите там «Разрешить», затем «Я разрешил» здесь.");
+    }
+
+    async void LastFmDoneClick(object s, RoutedEventArgs e)
+    {
+        LastFmDone.IsEnabled = false;
+        var err = await LastFm.FinishConnectAsync();
+        LastFmDone.IsEnabled = true;
+        if (err != null) { LastFmText.Text = err; return; }
+        LastFmDone.Visibility = Visibility.Collapsed;
+        UpdateIntegrations();
+    }
+
+    void DiscordClick(object s, RoutedEventArgs e)
+    {
+        SettingsStore.Current.DiscordPresence = Discord.IsChecked == true;
+        SettingsStore.Save();
+        _ = DiscordPresence.UpdateAsync(force: true);
+    }
+
+    void InstallClick(object s, RoutedEventArgs e) => Installer.Install();
+
+    void AutoUpdateClick(object s, RoutedEventArgs e) { SettingsStore.Current.AutoUpdateCheck = AutoUpdate.IsChecked == true; SettingsStore.Save(); }
+    void AskCrashClick(object s, RoutedEventArgs e) { SettingsStore.Current.AskCrashReports = AskCrash.IsChecked == true; SettingsStore.Save(); }
+
+    async void CheckUpdatesClick(object s, RoutedEventArgs e)
+    {
+        CheckUpdates.IsEnabled = false;
+        UpdateStatus.Text = L.T("Проверяю…");
+        var r = await Updater.CheckAsync(notify: false);
+        CheckUpdates.IsEnabled = true;
+        if (r != null) { UpdateStatus.Text = L.F("Доступна версия {0}", r.Version.ToString(3)); UpdateWindow.Offer(manual: true); }
+        else UpdateStatus.Text = L.F("У вас последняя версия ({0})", Updater.Current.ToString(3));
     }
 
     // ------------------------------------------------------------------ игровой режим
@@ -31,15 +179,15 @@ internal partial class AppSettingsPage : UserControl
         var o = SettingsStore.Current.Game;
         (string text, string hint, Func<bool> get, Action<bool> set)[] items =
         [
-            ("Отключить анимации острова", "капля и пружины — остров сразу встаёт в нужную форму", () => o.IslandAnimations, v => o.IslandAnimations = v),
-            ("Остановить эквалайзер на острове", "полоски замирают — ни одной перерисовки, пока играет музыка", () => o.IslandEqualizer, v => o.IslandEqualizer = v),
-            ("Отключить анимации текста песен", "строки переключаются мгновенно, позиция проверяется реже", () => o.LyricsAnimations, v => o.LyricsAnimations = v),
-            ("Убрать размытую обложку за текстом", "", () => o.LyricsBackdrop, v => o.LyricsBackdrop = v),
-            ("Отключить эквалайзер звука", "звук идёт через аппаратный декодер без обработки", () => o.AudioEqualizer, v => o.AudioEqualizer = v),
-            ("Включить режим эффективности Windows", "EcoQoS: Taskbeat работает на энергоэффективных ядрах и не мешает игре", () => o.EfficiencyMode, v => o.EfficiencyMode = v),
-            ("Понизить приоритет процесса", "«ниже среднего» — игра получает процессор первой", () => o.LowPriority, v => o.LowPriority = v),
-            ("Быстро усыплять вкладки", "скрытые вкладки YouTube/SoundCloud/Яндекса засыпают через 5 с вместо 30", () => o.FastTabSleep, v => o.FastTabSleep = v),
-            ("Отдавать системе лишнюю память", "Taskbeat отдаёт системе неиспользуемую память, когда окно скрыто", () => o.TrimMemory, v => o.TrimMemory = v),
+            (L.T("Отключить анимации острова"), L.T("капля и пружины — остров сразу встаёт в нужную форму"), () => o.IslandAnimations, v => o.IslandAnimations = v),
+            (L.T("Остановить эквалайзер на острове"), L.T("полоски замирают — ни одной перерисовки, пока играет музыка"), () => o.IslandEqualizer, v => o.IslandEqualizer = v),
+            (L.T("Отключить анимации текста песен"), L.T("строки переключаются мгновенно, позиция проверяется реже"), () => o.LyricsAnimations, v => o.LyricsAnimations = v),
+            (L.T("Убрать размытую обложку за текстом"), "", () => o.LyricsBackdrop, v => o.LyricsBackdrop = v),
+            (L.T("Отключить эквалайзер звука"), L.T("звук идёт через аппаратный декодер без обработки"), () => o.AudioEqualizer, v => o.AudioEqualizer = v),
+            (L.T("Включить режим эффективности Windows"), L.T("EcoQoS: Taskbeat работает на энергоэффективных ядрах и не мешает игре"), () => o.EfficiencyMode, v => o.EfficiencyMode = v),
+            (L.T("Понизить приоритет процесса"), L.T("«ниже среднего» — игра получает процессор первой"), () => o.LowPriority, v => o.LowPriority = v),
+            (L.T("Быстро усыплять вкладки"), L.T("скрытые вкладки YouTube/SoundCloud/Яндекса засыпают через 5 с вместо 30"), () => o.FastTabSleep, v => o.FastTabSleep = v),
+            (L.T("Отдавать системе лишнюю память"), L.T("Taskbeat отдаёт системе неиспользуемую память, когда окно скрыто"), () => o.TrimMemory, v => o.TrimMemory = v),
         ];
         GameOpts.Children.Clear();
         foreach (var (text, hint, get, set) in items)
@@ -89,13 +237,13 @@ internal partial class AppSettingsPage : UserControl
             {
                 Content = Hotkeys.Format(b), MinWidth = 190, Padding = new Thickness(12, 6, 12, 6),
                 FontFamily = new System.Windows.Media.FontFamily("Segoe UI Variable Text, Segoe UI"),
-                ToolTip = "Нажмите и зажмите новое сочетание",
+                ToolTip = L.T("Нажмите и зажмите новое сочетание"),
             };
             key.SetResourceReference(StyleProperty, "Pill");
             key.Click += (_, _) => StartCapture(a, key);
             key.LostKeyboardFocus += (_, _) => { if (captureBtn == key) StopCapture(); };
 
-            var reset = new Button { Content = "", ToolTip = "По умолчанию", Margin = new Thickness(6, 0, 0, 0), Width = 32, Height = 32, FontSize = 13 };
+            var reset = new Button { Content = "", ToolTip = L.T("По умолчанию"), Margin = new Thickness(6, 0, 0, 0), Width = 32, Height = 32, FontSize = 13 };
             reset.SetResourceReference(StyleProperty, "Icon");
             reset.Click += (_, _) => Hotkeys.Reset(a);
 
@@ -107,7 +255,7 @@ internal partial class AppSettingsPage : UserControl
             row.Children.Add(key);
             row.Children.Add(reset);
 
-            string? warn = Hotkeys.Failed.Contains(a.Key) ? "Сочетание занято другой программой — выберите другое"
+            string? warn = Hotkeys.Failed.Contains(a.Key) ? L.T("Сочетание занято другой программой — выберите другое")
                 : b.Enabled ? Hotkeys.Warning(b, a) : null;
             if (warn != null)
             {
@@ -130,7 +278,7 @@ internal partial class AppSettingsPage : UserControl
         StopCapture();
         capturing = a;
         captureBtn = btn;
-        btn.Content = "Нажмите сочетание…";
+        btn.Content = L.T("Нажмите сочетание…");
         btn.SetResourceReference(StyleProperty, "PillAccent");
         Hotkeys.Pause(); // чтобы нажатие не сработало как горячая клавиша
         btn.Focus();
@@ -163,7 +311,7 @@ internal partial class AppSettingsPage : UserControl
             captureBtn.Content = Hotkeys.Format(new HotkeyBinding { Mods = m, Vk = 0 }) is "—" && m != 0
                 ? string.Join(" + ", new[] { (m & Hotkeys.WIN) != 0 ? "Win" : null, (m & Hotkeys.CTRL) != 0 ? "Ctrl" : null,
                     (m & Hotkeys.ALT) != 0 ? "Alt" : null, (m & Hotkeys.SHIFT) != 0 ? "Shift" : null }.Where(x => x != null)) + " + …"
-                : "Нажмите сочетание…";
+                : L.T("Нажмите сочетание…");
             return;
         }
         if (m == 0 && k == System.Windows.Input.Key.Escape) { StopCapture(); return; }
@@ -204,13 +352,13 @@ internal partial class AppSettingsPage : UserControl
     {
         if (!AppHost.Vk.LoggedIn)
         {
-            VkName.Text = "Не выполнен вход";
-            VkHint.Text = "Войдите, чтобы слушать свою музыку, рекомендации и плейлисты VK.";
-            VkBtn.Content = "Войти";
+            VkName.Text = L.T("Не выполнен вход");
+            VkHint.Text = L.T("Войдите, чтобы слушать свою музыку, рекомендации и плейлисты VK.");
+            VkBtn.Content = L.T("Войти");
             return;
         }
-        VkBtn.Content = "Выйти";
-        VkHint.Text = "Ключ доступа хранится зашифрованным средствами Windows.";
+        VkBtn.Content = L.T("Выйти");
+        VkHint.Text = L.T("Ключ доступа хранится зашифрованным средствами Windows.");
         VkName.Text = $"id{AppHost.Vk.UserId}";
         try { VkName.Text = await AppHost.Vk.UserNameAsync(); } catch { }
     }

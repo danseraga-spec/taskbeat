@@ -39,7 +39,7 @@ sealed class PipWindow : Window
     public PipWindow(WebSurface surface)
     {
         this.surface = surface;
-        Title = "Taskbeat — картинка в картинке";
+        Title = L.T("Taskbeat — картинка в картинке");
         WindowStyle = WindowStyle.None;
         ResizeMode = ResizeMode.CanResize;
         Topmost = true;
@@ -65,8 +65,8 @@ sealed class PipWindow : Window
             if (e.ClickCount == 2) AppHost.Web.ExitPip(true);
             else DragMove();
         };
-        var close = BarButton("", "Закрыть и вернуть видео в Taskbeat", () => AppHost.Web.ExitPip(false));
-        var back = BarButton("", "Открыть в Taskbeat", () => AppHost.Web.ExitPip(true));
+        var close = BarButton("", L.T("Закрыть и вернуть видео в Taskbeat"), () => AppHost.Web.ExitPip(false));
+        var back = BarButton("", L.T("Открыть в Taskbeat"), () => AppHost.Web.ExitPip(true));
         DockPanel.SetDock(close, Dock.Right);
         DockPanel.SetDock(back, Dock.Right);
         bar.Children.Add(close);

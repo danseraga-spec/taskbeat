@@ -67,7 +67,7 @@ sealed class LyricsView : UserControl
         sourceInfo.Margin = new Thickness(0, 3, 0, 0);
         names.Children.Add(sourceInfo);
         var pills = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
-        foreach (var (k, text) in new[] { ("auto", "Авто"), ("vk", "VK"), ("lrclib", "LrcLib") })
+        foreach (var (k, text) in new[] { ("auto", L.T("Авто")), ("vk", "VK"), ("lrclib", "LrcLib") })
         {
             var r = new RadioButton { Content = text, GroupName = "lyrsrc", Margin = new Thickness(0, 0, 6, 0) };
             r.SetResourceReference(StyleProperty, "PillTab");
@@ -82,7 +82,7 @@ sealed class LyricsView : UserControl
             sources[k] = r;
             pills.Children.Add(r);
         }
-        var closeBtn = new Button { Content = "", ToolTip = "Закрыть текст (Esc)", Margin = new Thickness(10, 0, 0, 0) };
+        var closeBtn = new Button { Content = "", ToolTip = L.T("Закрыть текст (Esc)"), Margin = new Thickness(10, 0, 0, 0) };
         closeBtn.SetResourceReference(StyleProperty, "Icon");
         closeBtn.Click += (_, _) => close();
         pills.Children.Add(closeBtn);
@@ -175,7 +175,7 @@ sealed class LyricsView : UserControl
         key = k;
         int ver = ++loadVersion;
 
-        title.Text = t.Length > 0 ? t : "Ничего не играет";
+        title.Text = t.Length > 0 ? t : L.T("Ничего не играет");
         artist.Text = a;
         var img = Cover(vk, 112) ?? AppHost.Media.State.Art;
         art.ImageSource = img;
@@ -186,14 +186,14 @@ sealed class LyricsView : UserControl
         sourceInfo.Text = "";
         shift.BeginAnimation(TranslateTransform.YProperty, null);
         shift.Y = 0;
-        if (t.Length == 0) { status.Text = "Включите трек — здесь появится текст"; return; }
-        status.Text = "Ищу текст…";
+        if (t.Length == 0) { status.Text = L.T("Включите трек — здесь появится текст"); return; }
+        status.Text = L.T("Ищу текст…");
 
         var src = SettingsStore.Current.LyricsSource;
-        if (vk == null && src == "vk") { status.Text = "Текст из VK есть только для треков VK. Выберите «Авто» или LrcLib."; return; }
+        if (vk == null && src == "vk") { status.Text = L.T("Текст из VK есть только для треков VK. Выберите «Авто» или LrcLib."); return; }
         var l = await LyricsService.GetAsync(src, vk, a, t, dur);
         if (ver != loadVersion) return;
-        if (l == null || l.Lines.Count == 0) { status.Text = "Текст для этого трека не найден"; return; }
+        if (l == null || l.Lines.Count == 0) { status.Text = L.T("Текст для этого трека не найден"); return; }
         data = l;
         status.Text = "";
         sourceInfo.Text = l.Synced ? $"Синхронизированный текст · {l.Source}" : $"Текст без синхронизации · {l.Source}";

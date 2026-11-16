@@ -136,6 +136,7 @@ sealed class GraphDeck : IDeck
     readonly GraphEngine engine;
     MediaSourceAudioInputNode? node;
     readonly List<EqualizerEffectDefinition> eqs = [];
+    LimiterEffectDefinition? limiter;
     bool playing;
     double gain = 1;
 
@@ -168,7 +169,12 @@ sealed class GraphDeck : IDeck
             eqs.Add(eq);
             n.EffectDefinitions.Add(eq);
         }
+        // выравнивание громкости: тихие треки поднимаются, громкие упираются в потолок
+        limiter = new LimiterEffectDefinition(engine.Graph) { Loudness = 1500, Release = 8 };
+        n.EffectDefinitions.Add(limiter);
+        node = n;
         ApplyEq();
+        node = null;
         n.MediaSourceCompleted += (_, _) => { playing = false; Ended?.Invoke(this); };
         n.Stop();
         n.AddOutgoingConnection(engine.Output);
@@ -180,6 +186,12 @@ sealed class GraphDeck : IDeck
     public void ApplyEq()
     {
         var g = SettingsStore.Current.EqGains;
+        bool eqOn = SettingsStore.Current.EqEnabled;
+        if (node != null && limiter != null)
+        {
+            if (SettingsStore.Current.Normalize) node.EnableEffectsByDefinition(limiter);
+            else node.DisableEffectsByDefinition(limiter);
+        }
         for (int i = 0; i < 12; i++)
         {
             var band = eqs.Count == 3 ? eqs[i / 4].Bands[i % 4] : null;
@@ -188,7 +200,7 @@ sealed class GraphDeck : IDeck
             {
                 band.FrequencyCenter = GraphEngine.Freqs[i];
                 band.Bandwidth = 1.5;
-                band.Gain = GraphEngine.Linear(i < g.Length ? g[i] : 0);
+                band.Gain = eqOn ? GraphEngine.Linear(i < g.Length ? g[i] : 0) : 1;
             }
             else band.Gain = 1; // две запасные полосы — нейтральны
         }

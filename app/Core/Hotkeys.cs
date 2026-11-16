@@ -17,16 +17,16 @@ static class Hotkeys
 
     public static readonly Command[] All =
     [
-        new(1, "toggle", "Пауза / продолжить", CTRL | ALT, 0x20),
-        new(2, "next", "Следующий трек", CTRL | ALT, 0x27),
-        new(3, "prev", "Предыдущий трек", CTRL | ALT, 0x25),
-        new(4, "volup", "Громче", CTRL | ALT, 0x26),
-        new(5, "voldown", "Тише", CTRL | ALT, 0x28),
-        new(6, "island", "Показать остров (и поверх игры)", CTRL | ALT, 0x49),
-        new(7, "mode", "Игровой / классический режим", CTRL | ALT, 0x47),
-        new(8, "lyrics", "Текст песни", CTRL | ALT, 0x4C),
-        new(9, "hub", "Открыть Taskbeat", CTRL | ALT, 0x48),
-        new(10, "eq", "Эквалайзер вкл/выкл", CTRL | ALT, 0x45),
+        new(1, "toggle", L.T("Пауза / продолжить"), CTRL | ALT, 0x20),
+        new(2, "next", L.T("Следующий трек"), CTRL | ALT, 0x27),
+        new(3, "prev", L.T("Предыдущий трек"), CTRL | ALT, 0x25),
+        new(4, "volup", L.T("Громче"), CTRL | ALT, 0x26),
+        new(5, "voldown", L.T("Тише"), CTRL | ALT, 0x28),
+        new(6, "island", L.T("Показать остров (и поверх игры)"), CTRL | ALT, 0x49),
+        new(7, "mode", L.T("Игровой / классический режим"), CTRL | ALT, 0x47),
+        new(8, "lyrics", L.T("Текст песни"), CTRL | ALT, 0x4C),
+        new(9, "hub", L.T("Открыть Taskbeat"), CTRL | ALT, 0x48),
+        new(10, "eq", L.T("Эквалайзер вкл/выкл"), CTRL | ALT, 0x45),
     ];
 
     static IntPtr hwnd;
@@ -104,8 +104,8 @@ static class Hotkeys
             case "island": AppHost.Island.Peek(); break;
             case "mode":
                 Perf.Toggle();
-                AppHost.Island.Notify(Perf.Game ? "Игровой режим" : "Классический режим",
-                    Perf.Game ? "минимум ресурсов" : "красота",
+                AppHost.Island.Notify(Perf.Game ? L.T("Игровой режим") : L.T("Классический режим"),
+                    Perf.Game ? L.T("минимум ресурсов") : L.T("красота"),
                     Perf.Game ? Color.FromRgb(48, 209, 88) : Color.FromRgb(255, 194, 74));
                 break;
             case "lyrics": AppHost.ShowHub(); AppHost.Hub?.ShowLyrics(null); break;
@@ -114,7 +114,7 @@ static class Hotkeys
                 SettingsStore.Current.EqEnabled = !SettingsStore.Current.EqEnabled;
                 SettingsStore.Save();
                 AppHost.Player.EqChanged();
-                AppHost.Island.Notify("Эквалайзер", SettingsStore.Current.EqEnabled ? "включён" : "выключен", Color.FromRgb(10, 132, 255));
+                AppHost.Island.Notify(L.T("Эквалайзер"), SettingsStore.Current.EqEnabled ? L.T("включён") : L.T("выключен"), Color.FromRgb(10, 132, 255));
                 break;
         }
     }
@@ -135,7 +135,7 @@ static class Hotkeys
 
     public static string KeyName(uint vk) => vk switch
     {
-        0x20 => "Пробел", 0x25 => "←", 0x26 => "↑", 0x27 => "→", 0x28 => "↓",
+        0x20 => L.T("Пробел"), 0x25 => "←", 0x26 => "↑", 0x27 => "→", 0x28 => "↓",
         0x0D => "Enter", 0x1B => "Esc", 0x09 => "Tab", 0x08 => "Backspace", 0x2E => "Delete", 0x2D => "Insert",
         0x24 => "Home", 0x23 => "End", 0x21 => "PageUp", 0x22 => "PageDown", 0x2C => "PrintScreen", 0x13 => "Pause",
         >= 0x30 and <= 0x39 => ((char)vk).ToString(),
@@ -158,25 +158,25 @@ static class Hotkeys
         var other = All.FirstOrDefault(a => a != self && Get(a) is { Enabled: true } o && o.Mods == m && o.Vk == vk);
         if (other != null) return $"Уже назначено на «{other.What}»";
 
-        if (win) return "Сочетания с Win почти все заняты Windows (Win+D, Win+L, Win+Tab…) — может не сработать";
-        if (ctrl && alt && vk == 0x2E) return "Ctrl+Alt+Delete — системное сочетание Windows";
-        if (ctrl && shift && vk == 0x1B) return "Ctrl+Shift+Esc открывает диспетчер задач";
-        if (ctrl && !alt && !shift && vk == 0x1B) return "Ctrl+Esc открывает меню «Пуск»";
+        if (win) return L.T("Сочетания с Win почти все заняты Windows (Win+D, Win+L, Win+Tab…) — может не сработать");
+        if (ctrl && alt && vk == 0x2E) return L.T("Ctrl+Alt+Delete — системное сочетание Windows");
+        if (ctrl && shift && vk == 0x1B) return L.T("Ctrl+Shift+Esc открывает диспетчер задач");
+        if (ctrl && !alt && !shift && vk == 0x1B) return L.T("Ctrl+Esc открывает меню «Пуск»");
         if (alt && !ctrl && vk is 0x09 or 0x73 or 0x1B or 0x20)
-            return vk switch { 0x09 => "Alt+Tab — переключение окон", 0x73 => "Alt+F4 закрывает окна", 0x1B => "Alt+Esc — переключение окон", _ => "Alt+Пробел открывает меню окна" };
-        if (ctrl && alt && vk == 0x09) return "Ctrl+Alt+Tab — переключение окон Windows";
-        if (vk == 0x2C) return "PrintScreen используется для снимков экрана";
-        if (vk is 0xB3 or 0xB0 or 0xB1 or 0xAF or 0xAE or 0xAD) return "Мультимедийные клавиши уже управляют музыкой через Windows — Taskbeat их и так понимает";
-        if (m == 0) return "Без Ctrl/Alt/Shift клавиша перестанет работать во всех других программах и играх";
-        if (m == SHIFT) return "Shift + клавиша — это обычный ввод текста";
+            return vk switch { 0x09 => L.T("Alt+Tab — переключение окон"), 0x73 => L.T("Alt+F4 закрывает окна"), 0x1B => L.T("Alt+Esc — переключение окон"), _ => L.T("Alt+Пробел открывает меню окна") };
+        if (ctrl && alt && vk == 0x09) return L.T("Ctrl+Alt+Tab — переключение окон Windows");
+        if (vk == 0x2C) return L.T("PrintScreen используется для снимков экрана");
+        if (vk is 0xB3 or 0xB0 or 0xB1 or 0xAF or 0xAE or 0xAD) return L.T("Мультимедийные клавиши уже управляют музыкой через Windows — Taskbeat их и так понимает");
+        if (m == 0) return L.T("Без Ctrl/Alt/Shift клавиша перестанет работать во всех других программах и играх");
+        if (m == SHIFT) return L.T("Shift + клавиша — это обычный ввод текста");
         if (ctrl && !alt && !shift && vk is 0x41 or 0x43 or 0x56 or 0x58 or 0x5A or 0x59 or 0x53 or 0x46 or 0x50 or 0x4E or 0x57 or 0x54 or 0x52 or 0x4F)
-            return "Это привычная команда программ (копировать, вставить, сохранить…) — она перестанет работать";
-        if (alt && !ctrl && !shift && vk is >= 0x41 and <= 0x5A) return "Alt + буква открывает меню во многих программах";
-        if (ctrl && shift && !alt && vk == 0x10) return "Ctrl+Shift переключает раскладку";
+            return L.T("Это привычная команда программ (копировать, вставить, сохранить…) — она перестанет работать");
+        if (alt && !ctrl && !shift && vk is >= 0x41 and <= 0x5A) return L.T("Alt + буква открывает меню во многих программах");
+        if (ctrl && shift && !alt && vk == 0x10) return L.T("Ctrl+Shift переключает раскладку");
         if (ctrl && alt && !shift && vk is >= 0x25 and <= 0x28)
-            return "На некоторых видеокартах Intel Ctrl+Alt+стрелки поворачивают экран (обычно выключено)";
-        if (ctrl && shift && !alt && vk == 0x1B) return "Ctrl+Shift+Esc — диспетчер задач";
-        if (vk is >= 0x70 and <= 0x7B && m == ALT && vk == 0x73) return "Alt+F4 закрывает окна";
+            return L.T("На некоторых видеокартах Intel Ctrl+Alt+стрелки поворачивают экран (обычно выключено)");
+        if (ctrl && shift && !alt && vk == 0x1B) return L.T("Ctrl+Shift+Esc — диспетчер задач");
+        if (vk is >= 0x70 and <= 0x7B && m == ALT && vk == 0x73) return L.T("Alt+F4 закрывает окна");
         return null;
     }
 

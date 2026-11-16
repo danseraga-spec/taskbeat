@@ -199,14 +199,14 @@ sealed class MediaService(Dispatcher ui)
         var a = id.ToLowerInvariant();
         if (a.Contains("taskbeat") || a.Contains("coolplayer") || a.Contains("webview")) return "Taskbeat";
         if (a.Contains("spotify")) return "Spotify";
-        if (a.Contains("yandex") && a.Contains("music")) return "Яндекс Музыка";
+        if (a.Contains("yandex") && a.Contains("music")) return L.T("Яндекс Музыка");
         if (a.Contains("vk")) return "VK";
         if (a.Contains("chrome")) return "Chrome";
         if (a.Contains("msedge")) return "Edge";
         if (a.Contains("firefox")) return "Firefox";
         if (a.Contains("opera")) return "Opera";
-        if (a.Contains("yandex")) return "Яндекс Браузер";
-        if (a.Contains("zunemusic") || a.Contains("media")) return "Медиаплеер";
+        if (a.Contains("yandex")) return L.T("Яндекс Браузер");
+        if (a.Contains("zunemusic") || a.Contains("media")) return L.T("Медиаплеер");
         var name = System.IO.Path.GetFileNameWithoutExtension(id.Split('!')[0]);
         return name.Length > 0 ? char.ToUpper(name[0]) + name[1..] : id;
     }

@@ -13,22 +13,24 @@ sealed class EqWindow : Window
 {
     public static readonly (string key, string name, double[] g)[] Presets =
     [
-        ("flat", "Ровно", [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
-        ("bass", "Больше баса", [7, 6, 5, 3, 1, 0, 0, 0, 0, 0]),
-        ("bassless", "Меньше баса", [-6, -5, -4, -2, 0, 0, 0, 0, 0, 0]),
-        ("vocal", "Вокал", [-3, -2, -1, 1, 4, 5, 4, 2, 0, -1]),
-        ("rock", "Рок", [5, 4, 2, 0, -1, -1, 1, 3, 4, 5]),
-        ("pop", "Поп", [-1, 1, 3, 4, 3, 1, 0, 1, 2, 2]),
-        ("electro", "Электроника", [5, 4, 1, 0, -2, 1, 0, 2, 4, 5]),
-        ("hiphop", "Хип-хоп", [6, 5, 2, 3, -1, -1, 1, 0, 2, 3]),
-        ("classic", "Классика", [4, 3, 2, 1, -1, -1, 0, 2, 3, 4]),
-        ("treble", "Больше высоких", [0, 0, 0, 0, 0, 1, 3, 5, 6, 7]),
-        ("night", "Ночной", [-2, -1, 0, 1, 2, 2, 1, -1, -3, -5]),
+        ("flat", L.T("Ровно"), [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
+        ("bass", L.T("Больше баса"), [7, 6, 5, 3, 1, 0, 0, 0, 0, 0]),
+        ("bassless", L.T("Меньше баса"), [-6, -5, -4, -2, 0, 0, 0, 0, 0, 0]),
+        ("vocal", L.T("Вокал"), [-3, -2, -1, 1, 4, 5, 4, 2, 0, -1]),
+        ("rock", L.T("Рок"), [5, 4, 2, 0, -1, -1, 1, 3, 4, 5]),
+        ("pop", L.T("Поп"), [-1, 1, 3, 4, 3, 1, 0, 1, 2, 2]),
+        ("electro", L.T("Электроника"), [5, 4, 1, 0, -2, 1, 0, 2, 4, 5]),
+        ("hiphop", L.T("Хип-хоп"), [6, 5, 2, 3, -1, -1, 1, 0, 2, 3]),
+        ("classic", L.T("Классика"), [4, 3, 2, 1, -1, -1, 0, 2, 3, 4]),
+        ("treble", L.T("Больше высоких"), [0, 0, 0, 0, 0, 1, 3, 5, 6, 7]),
+        ("night", L.T("Ночной"), [-2, -1, 0, 1, 2, 2, 1, -1, -3, -5]),
     ];
 
     readonly Slider[] sliders = new Slider[10];
     readonly TextBlock[] values = new TextBlock[10];
-    readonly CheckBox on = new() { Content = "Эквалайзер включён", FontSize = 14 };
+    readonly CheckBox on = new() { Content = L.T("Эквалайзер включён"), FontSize = 14 };
+    readonly CheckBox norm = new() { Content = L.T("Выравнивать громкость треков"), FontSize = 13.5, Margin = new Thickness(0, 14, 0, 0),
+        ToolTip = L.T("Тихие треки звучат громче, громкие не «бьют» по ушам. Немного нагружает процессор.") };
     readonly WrapPanel presets = new() { Margin = new Thickness(0, 14, 0, 0) };
     readonly TextBlock note = new() { FontSize = 12, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 12, 0, 0) };
     readonly DispatcherTimer saveLater = new() { Interval = TimeSpan.FromSeconds(1) };
@@ -38,7 +40,7 @@ sealed class EqWindow : Window
 
     public EqWindow()
     {
-        Title = "Taskbeat — эквалайзер";
+        Title = L.T("Taskbeat — эквалайзер");
         Width = 620;
         SizeToContent = SizeToContent.Height;
         ResizeMode = ResizeMode.NoResize;
@@ -58,7 +60,7 @@ sealed class EqWindow : Window
 
         var root = new StackPanel { Margin = new Thickness(26, 20, 26, 22) };
         var head = new DockPanel();
-        var reset = new Button { Content = "Сбросить", Padding = new Thickness(14, 6, 14, 6) };
+        var reset = new Button { Content = L.T("Сбросить"), Padding = new Thickness(14, 6, 14, 6) };
         reset.SetResourceReference(StyleProperty, "Pill");
         reset.Click += (_, _) => ApplyPreset("flat");
         DockPanel.SetDock(reset, Dock.Right);
@@ -108,6 +110,15 @@ sealed class EqWindow : Window
             bands.Children.Add(col);
         }
         root.Children.Add(bands);
+        norm.IsChecked = S.Normalize;
+        norm.Click += (_, _) =>
+        {
+            S.Normalize = norm.IsChecked == true;
+            SettingsStore.Save();
+            AppHost.Player.EqChanged();
+            UpdateState();
+        };
+        root.Children.Add(norm);
         note.SetResourceReference(TextBlock.ForegroundProperty, "Fg3");
         root.Children.Add(note);
         Content = root;
@@ -160,9 +171,9 @@ sealed class EqWindow : Window
         bool en = S.EqEnabled;
         foreach (var s in sliders) s.Opacity = en ? 1 : 0.45;
         presets.Opacity = en ? 1 : 0.55;
-        note.Text = !en ? "Эквалайзер выключен — звук идёт через системный проигрыватель с минимальной нагрузкой."
-            : Perf.NoAudioEq ? "Сейчас игровой режим, и в его настройках эквалайзер отключён — он заработает в классическом режиме."
-            : "Работает для треков VK в Taskbeat. Двойной клик по полосе — сброс в 0. Эквалайзер немного нагружает процессор.";
+        note.Text = !en ? L.T("Эквалайзер выключен — звук идёт через системный проигрыватель с минимальной нагрузкой.")
+            : Perf.NoAudioEq ? L.T("Сейчас игровой режим, и в его настройках эквалайзер отключён — он заработает в классическом режиме.")
+            : L.T("Работает для треков VK в Taskbeat. Двойной клик по полосе — сброс в 0. Эквалайзер немного нагружает процессор.");
     }
 
     static string Freq(double f) => f >= 1000 ? $"{f / 1000:0.#}k" : $"{f:0}";

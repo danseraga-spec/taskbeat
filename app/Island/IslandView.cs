@@ -9,9 +9,9 @@ using System.Windows.Threading;
 
 namespace CoolPlayer;
 
-enum Mode { Strip, Info, Media, Activity, ExpMedia, ExpIdle, Alert }
+enum Mode { Strip, Info, Media, Activity, Live, ExpMedia, ExpIdle, Alert }
 
-sealed record ActivityInfo(string Kind, string Left, string Right, Color Color);
+sealed record ActivityInfo(string Kind, string Left, string Right, Color Color) { public double Value { get; init; } }
 
 /// <summary>Пружина: «живое» движение с лёгким перелётом, как у Dynamic Island.</summary>
 sealed class Spring(double v)
@@ -42,7 +42,7 @@ sealed class IslandView : FrameworkElement
 {
     static readonly FontFamily Font = new("Segoe UI Variable Display, Segoe UI");
     static readonly FontFamily Icons = new("Segoe Fluent Icons, Segoe MDL2 Assets");
-    static readonly CultureInfo Ru = new("ru-RU");
+    static readonly CultureInfo Ru = new(global::CoolPlayer.L.En ? "en-US" : "ru-RU");
     static readonly double[] BarPhase = [0.3, 2.1, 4.0, 5.2];
 
     static readonly Brush HitBrush = Freeze(new SolidColorBrush(Color.FromArgb(1, 0, 0, 0)));
@@ -122,10 +122,11 @@ sealed class IslandView : FrameworkElement
         weather.Changed += Retarget;
         scheduler.MinuteTick += Retarget;
         scheduler.ReminderDue += OnReminder;
-        settingsChanged = () => { textCache.Clear(); Retarget(); };
+        settingsChanged = () => { textCache.Clear(); UpdateAccent(); Retarget(); };
         SettingsStore.Changed += settingsChanged;
         AppHost.Web.PipStateChanged += InvalidateVisual;
         Perf.Changed += Retarget;
+        Live.Changed += Retarget;
     }
 
     readonly Action settingsChanged;
@@ -140,6 +141,7 @@ sealed class IslandView : FrameworkElement
         SettingsStore.Changed -= settingsChanged;
         AppHost.Web.PipStateChanged -= InvalidateVisual;
         Perf.Changed -= Retarget;
+        Live.Changed -= Retarget;
         hidden = true;
         eqTimer.Stop(); slowTimer.Stop(); hoverTimer.Stop(); leaveTimer.Stop(); activityTimer.Stop();
         if (renderingHooked) { CompositionTarget.Rendering -= OnFrame; renderingHooked = false; }
@@ -152,6 +154,7 @@ sealed class IslandView : FrameworkElement
         // второй монитор в обычном режиме — только полоска; пока остров на другом мониторе — и её нет
         if ((yielded && !ignoreYield) || !host.IsMain) return Mode.Strip;
         if (activity != null) return Mode.Activity;
+        if (Live.Current != null) return Mode.Live;
         if (M.Has && M.Playing) return Mode.Media;
         var rule = Scheduler.ActiveRule();
         if (rule != null)
@@ -182,8 +185,9 @@ sealed class IslandView : FrameworkElement
         double mid = TaskbarHeight / 2;
         return m switch
         {
-            Mode.Media => (200, 32, mid),
-            Mode.Activity => activity?.Kind switch { "track" => (360, 32, mid), "notif" => (400, 46, mid), _ => (286, 32, mid) },
+            Mode.Media => Live.PillLyrics.Line != null ? (400, 32, mid) : (200, 32, mid),
+            Mode.Activity => activity?.Kind switch { "track" => (360, 32, mid), "notif" => (400, 46, mid), "volume" => (300, 32, mid), _ => (286, 32, mid) },
+            Mode.Live => (300, 32, mid),
             Mode.Info => (InfoWidth(), 32, mid),
             Mode.ExpMedia => (424, 160, 6 + 80),
             Mode.ExpIdle => M.Has ? (384, 164, 6 + 82) : (384, 118, 6 + 59),
@@ -214,7 +218,7 @@ sealed class IslandView : FrameworkElement
         Retarget();
     }
 
-    const double StripH = 5; // толщина полоски в покое
+    static double StripH => Math.Clamp(S.StripThickness, 3, 8); // толщина полоски в покое
     double StripWidth => S.StripFullWidth ? W + 2 * Math.Abs(S.OffsetX) + 10 : 200;
 
     Mode lastMode = Mode.Strip;
@@ -412,7 +416,8 @@ sealed class IslandView : FrameworkElement
 
     void UpdateAccent()
     {
-        if (M.Art == null) accent = Color.FromRgb(235, 235, 240);
+        if (S.StripColor == "accent") accent = Themes.Accent;
+        else if (M.Art == null) accent = Color.FromRgb(235, 235, 240);
         else
         {
             var (h, s, l) = ToHsl(M.Accent);
@@ -461,7 +466,7 @@ sealed class IslandView : FrameworkElement
         if (!host.IsMain) return;
         double now = clock.Elapsed.TotalSeconds;
         if (S.ClipboardToast && now - lastClip > 0.6 && !hidden && alert == null)
-            ShowActivity(new ActivityInfo("copy", "Скопировано", "", Blue), 1.8);
+            ShowActivity(new ActivityInfo("copy", global::CoolPlayer.L.T("Скопировано"), "", Blue), 1.8);
         lastClip = now;
     }
 
@@ -473,8 +478,8 @@ sealed class IslandView : FrameworkElement
         {
             int p = power.pct;
             ShowActivity(power.ac
-                ? new ActivityInfo("charge", "Зарядка", $"{p}%", Green)
-                : new ActivityInfo("battery", "От батареи", $"{p}%", p <= 20 ? Red : Colors.White), 2.6);
+                ? new ActivityInfo("charge", global::CoolPlayer.L.T("Зарядка"), $"{p}%", Green)
+                : new ActivityInfo("battery", global::CoolPlayer.L.T("От батареи"), $"{p}%", p <= 20 ? Red : Colors.White), 2.6);
         }
         InvalidateVisual();
     }
@@ -624,6 +629,7 @@ sealed class IslandView : FrameworkElement
                 {
                     case Mode.Media: DrawCompactMedia(dc, L, R, cy); break;
                     case Mode.Activity: DrawActivity(dc, L, R, cy); break;
+                    case Mode.Live: DrawLive(dc, L, R, cy, rect); break;
                     case Mode.Info: DrawInfo(dc, cx, cy); break;
                 }
                 dc.Pop();
@@ -670,6 +676,29 @@ sealed class IslandView : FrameworkElement
     {
         DrawArt(dc, new Rect(L + 6, cy - 10, 20, 20), 6);
         DrawBars(dc, R - 27, cy, 1);
+        if (Live.PillLyrics.Line is { } line && R - L > 260)
+        {
+            var t = Text(line, 12.5, FontWeights.SemiBold, accentBrush, R - L - 36 - 42);
+            dc.DrawText(t, new Point(L + 35, cy - t.Height / 2));
+        }
+    }
+
+    /// <summary>Таймер, секундомер, помодоро, загрузка: значок, подпись, время/проценты и тонкий прогресс снизу.</summary>
+    void DrawLive(DrawingContext dc, double L, double R, double cy, Rect pill)
+    {
+        if (Live.Current is not { } a) return;
+        var color = Freeze(new SolidColorBrush(a.Color));
+        DrawGlyph(dc, a.Glyph, 14, color, new Point(L + 24, cy));
+        var right = Text(a.Right, 13, FontWeights.SemiBold, color);
+        dc.DrawText(right, new Point(R - 18 - right.Width, cy - right.Height / 2));
+        var left = Text(a.Label, 12.5, FontWeights.SemiBold, White, R - L - 40 - right.Width - 30);
+        dc.DrawText(left, new Point(L + 40, cy - left.Height / 2));
+        if (a.Progress >= 0)
+        {
+            double x0 = L + 16, x1 = R - 16, y = pill.Bottom - 3.5;
+            dc.DrawRoundedRectangle(Freeze(new SolidColorBrush(Color.FromArgb(40, 255, 255, 255))), null, new Rect(x0, y, x1 - x0, 2), 1, 1);
+            dc.DrawRoundedRectangle(color, null, new Rect(x0, y, (x1 - x0) * Math.Clamp(a.Progress, 0, 1), 2), 1, 1);
+        }
     }
 
     void DrawActivity(DrawingContext dc, double L, double R, double cy)
@@ -698,7 +727,18 @@ sealed class IslandView : FrameworkElement
             dc.DrawText(t2, new Point(x, top + t1.Height));
             return;
         }
-        var left = Text(a.Left, 13, FontWeights.SemiBold, White);
+        if (a.Kind == "volume")
+        {
+            var vc = Freeze(new SolidColorBrush(a.Color));
+            DrawGlyph(dc, a.Value <= 0 ? "\uE74F" : a.Value < 0.34 ? "\uE993" : a.Value < 0.67 ? "\uE994" : "\uE995", 14, vc, new Point(L + 24, cy));
+            var num = Text(a.Right, 13, FontWeights.SemiBold, vc);
+            dc.DrawText(num, new Point(R - 18 - num.Width, cy - num.Height / 2));
+            double bx0 = L + 44, bx1 = R - 18 - 28;
+            dc.DrawRoundedRectangle(Freeze(new SolidColorBrush(Color.FromArgb(46, 255, 255, 255))), null, new Rect(bx0, cy - 2.5, bx1 - bx0, 5), 2.5, 2.5);
+            if (a.Value > 0) dc.DrawRoundedRectangle(vc, null, new Rect(bx0, cy - 2.5, (bx1 - bx0) * Math.Clamp(a.Value, 0, 1), 5), 2.5, 2.5);
+            return;
+        }
+        var left = Text(a.Left, 13, FontWeights.SemiBold, White, R - L - 140);
         dc.DrawText(left, new Point(L + 18, cy - left.Height / 2));
         var color = Freeze(new SolidColorBrush(a.Color));
         if (a.Kind is "charge" or "battery")
@@ -742,7 +782,7 @@ sealed class IslandView : FrameworkElement
             case InfoKind.Date: list.Add(("", now.ToString("ddd, d MMMM", Ru))); break;
             case InfoKind.NextReminder:
                 var r = Scheduler.NextReminder();
-                list.Add(("bell", r == null ? "Нет напоминаний" : $"{r.DueAt:HH:mm}  {r.Text}"));
+                list.Add(("bell", r == null ? global::CoolPlayer.L.T("Нет напоминаний") : $"{r.DueAt:HH:mm}  {r.Text}"));
                 break;
             case InfoKind.Custom: list.Add(("", string.IsNullOrWhiteSpace(infoText) ? "…" : infoText)); break;
         }
@@ -844,7 +884,7 @@ sealed class IslandView : FrameworkElement
         }
         else
         {
-            var t = Text(weather.Status == "Город не указан" ? "Погода: укажите город" : weather.Status, 12, FontWeights.Normal, Gray, 190);
+            var t = Text(weather.Status == global::CoolPlayer.L.T("Город не указан") ? global::CoolPlayer.L.T("Погода: укажите город") : weather.Status, 12, FontWeights.Normal, Gray, 190);
             dc.DrawText(t, new Point(R - 22 - 22 - t.Width, T + 30 - t.Height / 2));
             DrawGlyph(dc, "", 13, Gray, new Point(R - 22 - 8, T + 30)); // шестерёнка
             if (alpha > 0.9) buttons["settings"] = new Rect(R - 22 - 230, T + 16, 230, 28);
@@ -872,7 +912,7 @@ sealed class IslandView : FrameworkElement
         double by = T + 94;
         var next = Scheduler.NextReminder();
         DrawGlyph(dc, "", 12, Freeze(new SolidColorBrush(next == null ? Color.FromArgb(150, 255, 255, 255) : Orange)), new Point(L + 30, by));
-        string rt = next == null ? "Напоминаний нет" : $"{RelDay(next.DueAt)} {next.DueAt:HH:mm} · {next.Text}";
+        string rt = next == null ? global::CoolPlayer.L.T("Напоминаний нет") : $"{RelDay(next.DueAt)} {next.DueAt:HH:mm} · {next.Text}";
         var rtx = Text(rt, 12, FontWeights.Normal, Gray, R - L - 44 - (power.has ? 90 : 22));
         dc.DrawText(rtx, new Point(L + 42, by - rtx.Height / 2));
         if (power.has)
@@ -894,7 +934,7 @@ sealed class IslandView : FrameworkElement
         DrawGlyph(dc, "", 16, White, new Point(L + pad + 17, T + pad + 17));
 
         double x0 = L + pad + 34 + 12;
-        dc.DrawText(Text("Напоминание", 12, FontWeights.Normal, Gray), new Point(x0, T + pad - 1));
+        dc.DrawText(Text(global::CoolPlayer.L.T("Напоминание"), 12, FontWeights.Normal, Gray), new Point(x0, T + pad - 1));
         var when = Text(r.DueAt.ToString("HH:mm"), 12, FontWeights.Normal, Gray);
         dc.DrawText(when, new Point(R - pad - when.Width, T + pad - 1));
         dc.DrawText(Text(r.Text, 15, FontWeights.SemiBold, White, R - pad - x0, 2), new Point(x0, T + pad + 16));
@@ -904,9 +944,9 @@ sealed class IslandView : FrameworkElement
         var done = new Rect(L + pad + bw + 10, by, bw, 34);
         dc.DrawRoundedRectangle(ButtonBg, null, snooze, 17, 17);
         dc.DrawRoundedRectangle(orange, null, done, 17, 17);
-        var st = Text("Отложить на 10 мин", 13, FontWeights.SemiBold, White);
+        var st = Text(global::CoolPlayer.L.T("Отложить на 10 мин"), 13, FontWeights.SemiBold, White);
         dc.DrawText(st, new Point(snooze.X + (snooze.Width - st.Width) / 2, snooze.Y + (34 - st.Height) / 2));
-        var dt = Text("Готово", 13, FontWeights.SemiBold, Black);
+        var dt = Text(global::CoolPlayer.L.T("Готово"), 13, FontWeights.SemiBold, Black);
         dc.DrawText(dt, new Point(done.X + (done.Width - dt.Width) / 2, done.Y + (34 - dt.Height) / 2));
         if (alpha > 0.9) { buttons["snooze"] = snooze; buttons["done"] = done; }
     }
@@ -1099,7 +1139,7 @@ sealed class IslandView : FrameworkElement
     // ------------------------------------------------------------------ утилиты
 
     static string RelDay(DateTime d) =>
-        d.Date == DateTime.Today ? "Сегодня" : d.Date == DateTime.Today.AddDays(1) ? "Завтра" : d.ToString("d MMM", Ru);
+        d.Date == DateTime.Today ? global::CoolPlayer.L.T("Сегодня") : d.Date == DateTime.Today.AddDays(1) ? global::CoolPlayer.L.T("Завтра") : d.ToString("d MMM", Ru);
 
     static string Fmt(double sec)
     {

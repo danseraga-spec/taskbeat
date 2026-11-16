@@ -80,6 +80,50 @@
             <TextBlock TextWrapping="Wrap" Foreground="{StaticResource Fg3}" FontSize="12.5" Margin="0,4,0,0"
                        Text="Вкладки YouTube, SoundCloud и Яндекс Музыки запускаются только при первом открытии. Закрытие окна Taskbeat не останавливает музыку — плеер продолжит играть, а остров останется на месте."/>
 
+            <TextBlock Text="Оформление" FontSize="18" FontWeight="SemiBold" Margin="0,28,0,10"/>
+            <Border Background="{StaticResource Panel2}" CornerRadius="16" Padding="18,14">
+                <StackPanel>
+                    <DockPanel>
+                        <ComboBox x:Name="ThemeBox" DockPanel.Dock="Right" Width="200" SelectionChanged="ThemeChanged"/>
+                        <TextBlock Text="Тема окна" VerticalAlignment="Center" FontSize="14"/>
+                    </DockPanel>
+                    <DockPanel Margin="0,12,0,0">
+                        <ComboBox x:Name="LangBox" DockPanel.Dock="Right" Width="200" SelectionChanged="LangChanged"/>
+                        <TextBlock Text="Язык / Language" VerticalAlignment="Center" FontSize="14"/>
+                    </DockPanel>
+                    <TextBlock Text="Цвет акцента" FontSize="14" Margin="0,14,0,8"/>
+                    <WrapPanel x:Name="AccentPanel"/>
+                    <StackPanel x:Name="RestartRow" Orientation="Horizontal" Margin="0,12,0,0" Visibility="Collapsed">
+                        <TextBlock Text="Изменения применятся после перезапуска." VerticalAlignment="Center" FontSize="12.5" Foreground="{StaticResource Fg2}"/>
+                        <Button Content="Перезапустить" Style="{StaticResource PillAccent}" Margin="12,0,0,0" Click="RestartClick"/>
+                    </StackPanel>
+                    <DockPanel Margin="0,16,0,0">
+                        <TextBlock x:Name="StripValue" DockPanel.Dock="Right" Width="40" TextAlignment="Right" VerticalAlignment="Center" Foreground="{StaticResource Fg2}"/>
+                        <Slider x:Name="StripSlider" DockPanel.Dock="Right" Width="200" Minimum="3" Maximum="8" IsSnapToTickEnabled="True" TickFrequency="1" ValueChanged="StripChanged"/>
+                        <TextBlock Text="Толщина полоски острова" VerticalAlignment="Center" FontSize="14"/>
+                    </DockPanel>
+                    <CheckBox x:Name="StripAccent" Content="Полоска цвета акцента (а не обложки)" Margin="0,12,0,0" Click="StripAccentClick"/>
+                </StackPanel>
+            </Border>
+
+            <TextBlock Text="Интеграции" FontSize="18" FontWeight="SemiBold" Margin="0,28,0,10"/>
+            <Border Background="{StaticResource Panel2}" CornerRadius="16" Padding="18,14">
+                <StackPanel>
+                    <DockPanel>
+                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                            <Button x:Name="LastFmConnect" Content="Подключить" Style="{StaticResource Pill}" Click="LastFmConnectClick"/>
+                            <Button x:Name="LastFmDone" Content="Я разрешил" Style="{StaticResource PillAccent}" Click="LastFmDoneClick" Margin="8,0,0,0" Visibility="Collapsed"/>
+                        </StackPanel>
+                        <StackPanel>
+                            <TextBlock Text="Last.fm" FontSize="14" FontWeight="SemiBold"/>
+                            <TextBlock x:Name="LastFmText" FontSize="12.5" Foreground="{StaticResource Fg3}" TextWrapping="Wrap" Margin="0,2,12,0"/>
+                        </StackPanel>
+                    </DockPanel>
+                    <CheckBox x:Name="Discord" Content="Показывать в Discord, что я слушаю" Margin="0,14,0,0" Click="DiscordClick"/>
+                    <TextBlock x:Name="DiscordText" FontSize="12.5" Foreground="{StaticResource Fg3}" TextWrapping="Wrap" Margin="28,2,0,0"/>
+                </StackPanel>
+            </Border>
+
             <TextBlock Text="О программе" FontSize="18" FontWeight="SemiBold" Margin="0,28,0,10"/>
             <StackPanel Orientation="Horizontal">
                 <Image Source="{StaticResource Logo}" Width="52" Height="52"/>
@@ -89,9 +133,18 @@
                     <TextBlock x:Name="VersionText" FontSize="12.5" Foreground="{StaticResource Fg3}" Margin="0,2,0,0"/>
                 </StackPanel>
             </StackPanel>
+            <StackPanel Orientation="Horizontal" Margin="0,14,0,0">
+                <Button x:Name="CheckUpdates" Content="Проверить обновления" Style="{StaticResource Pill}" Click="CheckUpdatesClick"/>
+                <Button x:Name="InstallBtn" Content="Установить в систему" Style="{StaticResource Pill}" Margin="8,0,0,0" Click="InstallClick"/>
+                <TextBlock x:Name="UpdateStatus" VerticalAlignment="Center" Margin="12,0,0,0" FontSize="12.5" Foreground="{StaticResource Fg2}"/>
+            </StackPanel>
+            <CheckBox x:Name="AutoUpdate" Content="Проверять обновления автоматически" Margin="0,10,0,0" Click="AutoUpdateClick"/>
+            <CheckBox x:Name="AskCrash" Content="Предлагать отправить отчёт, если Taskbeat закрылся с ошибкой" Margin="0,6,0,0" Click="AskCrashClick"/>
+            <TextBlock TextWrapping="Wrap" Foreground="{StaticResource Fg3}" FontSize="12.5" Margin="0,4,0,0"
+                       Text="Обновление никогда не ставится само: Taskbeat покажет, что нового, и обновится только по кнопке «Обновить»."/>
             <TextBlock Text="Данные и приватность" FontSize="15" FontWeight="SemiBold" Margin="0,18,0,6"/>
             <TextBlock TextWrapping="Wrap" Foreground="{StaticResource Fg2}" FontSize="12.5" LineHeight="19"
-                       Text="Taskbeat не собирает статистику и ничего не отправляет разработчику. Ключ доступа VK хранится на этом компьютере в зашифрованном виде (Windows DPAPI), пароль не сохраняется. Настройки лежат в %APPDATA%\Taskbeat. Запросы уходят только в сервисы, которыми вы пользуетесь: VK, YouTube, SoundCloud, Яндекс Музыка, Spotify, а также Open-Meteo (погода) и LrcLib (тексты песен)."/>
+                       Text="Taskbeat не собирает статистику. Разработчику уходит только то, что вы сами отправите кнопкой «Отзыв или баг» или отчётом о сбое. Для проверки обновлений Taskbeat обращается к GitHub. Ключ доступа VK хранится на этом компьютере в зашифрованном виде (Windows DPAPI), пароль не сохраняется. Настройки лежат в %APPDATA%\Taskbeat. Запросы уходят только в сервисы, которыми вы пользуетесь: VK, YouTube, SoundCloud, Яндекс Музыка, Spotify, а также Open-Meteo (погода) и LrcLib (тексты песен)."/>
             <TextBlock Text="Сторонние компоненты" FontSize="15" FontWeight="SemiBold" Margin="0,18,0,6"/>
             <TextBlock TextWrapping="Wrap" Foreground="{StaticResource Fg2}" FontSize="12.5" LineHeight="19">
                 • Погода — Open-Meteo.com, данные под лицензией CC BY 4.0<LineBreak/>

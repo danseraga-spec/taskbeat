@@ -18,7 +18,7 @@ sealed class SessionVm
     public Brush Color => new SolidColorBrush(App switch
     {
         "Spotify" => System.Windows.Media.Color.FromRgb(30, 215, 96),
-        "Яндекс Музыка" or "Яндекс Браузер" => System.Windows.Media.Color.FromRgb(255, 204, 0),
+        "Яндекс Музыка" or "Яндекс Браузер" or "Yandex Music" or "Yandex Browser" => System.Windows.Media.Color.FromRgb(255, 204, 0),
         "VK" => System.Windows.Media.Color.FromRgb(0, 119, 255),
         "Taskbeat" => System.Windows.Media.Color.FromRgb(255, 194, 74),
         "Chrome" => System.Windows.Media.Color.FromRgb(120, 180, 255),
@@ -90,7 +90,7 @@ internal partial class RemotePage : UserControl
                 {
                     Session = s,
                     App = MediaService.FriendlyApp(s.SourceAppUserModelId),
-                    Title = string.IsNullOrEmpty(p?.Title) ? "Без названия" : p!.Title,
+                    Title = string.IsNullOrEmpty(p?.Title) ? global::CoolPlayer.L.T("Без названия") : p!.Title,
                     Artist = p?.Artist ?? "",
                     Playing = s.GetPlaybackInfo()?.PlaybackStatus == GSMTC.GlobalSystemMediaTransportControlsSessionPlaybackStatus.Playing,
                 });

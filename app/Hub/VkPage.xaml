@@ -19,6 +19,7 @@
                         <TextBlock Text="Перемешать"/>
                     </StackPanel>
                 </Button>
+                <Button x:Name="ExtraBtn" Style="{StaticResource Pill}" Click="ExtraClick" Margin="8,0,0,0" Visibility="Collapsed"/>
                 <Button Style="{StaticResource Icon}" Content="&#xE72C;" ToolTip="Обновить" Click="RefreshClick" Margin="6,0,0,0"/>
             </StackPanel>
             <TextBox x:Name="SearchBox" Style="{StaticResource Search}" Tag="Исполнитель, трек или альбом" Width="440"
@@ -42,9 +43,9 @@
                             <ColumnDefinition Width="64"/>
                             <ColumnDefinition Width="40"/>
                         </Grid.ColumnDefinitions>
-                        <Border Width="42" Height="42" CornerRadius="8" Background="#18181C" HorizontalAlignment="Left">
+                        <Border Width="42" Height="42" CornerRadius="8" Background="{StaticResource Panel2}" HorizontalAlignment="Left">
                             <Grid>
-                                <TextBlock Text="&#xEC4F;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="14" Foreground="#4A4A52"
+                                <TextBlock Text="&#xEC4F;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="14" Foreground="{StaticResource Fg3}"
                                            HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                 <Border CornerRadius="8">
                                     <Border.Background>
@@ -54,10 +55,10 @@
                             </Grid>
                         </Border>
                         <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="12,0,8,0">
-                            <TextBlock Text="{Binding Title}" FontSize="14" Foreground="White" TextTrimming="CharacterEllipsis"/>
-                            <TextBlock Text="{Binding Artist}" FontSize="12.5" Foreground="#9A9AA3" TextTrimming="CharacterEllipsis" Margin="0,2,0,0"/>
+                            <TextBlock Text="{Binding Title}" FontSize="14" Foreground="{StaticResource Fg}" TextTrimming="CharacterEllipsis"/>
+                            <TextBlock Text="{Binding Artist}" FontSize="12.5" Foreground="{StaticResource Fg2}" TextTrimming="CharacterEllipsis" Margin="0,2,0,0"/>
                         </StackPanel>
-                        <TextBlock Grid.Column="2" Text="{Binding DurationText}" FontSize="12.5" Foreground="#9A9AA3"
+                        <TextBlock Grid.Column="2" Text="{Binding DurationText}" FontSize="12.5" Foreground="{StaticResource Fg2}"
                                    HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,6,0"/>
                         <Button Grid.Column="3" Style="{StaticResource Icon}" Content="&#xE712;" ToolTip="Ещё" Click="MoreClick"
                                 Width="34" Height="34" FontSize="14"/>
@@ -78,9 +79,9 @@
                     <DataTemplate>
                         <Border Width="176" Margin="6,0,10,18" Background="Transparent" Cursor="Hand" MouseLeftButtonUp="PlaylistClick">
                             <StackPanel>
-                                <Border Width="176" Height="176" CornerRadius="14" Background="#141417">
+                                <Border Width="176" Height="176" CornerRadius="14" Background="{StaticResource Panel2}">
                                     <Grid>
-                                        <TextBlock Text="&#xE90B;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="34" Foreground="#3A3A42"
+                                        <TextBlock Text="&#xE90B;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="34" Foreground="{StaticResource Fg3}"
                                                    HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                         <Border CornerRadius="14">
                                             <Border.Background>
@@ -89,8 +90,8 @@
                                         </Border>
                                     </Grid>
                                 </Border>
-                                <TextBlock Text="{Binding Title}" FontSize="14" FontWeight="SemiBold" Foreground="White" Margin="2,10,0,0" TextTrimming="CharacterEllipsis"/>
-                                <TextBlock Text="{Binding CountText}" FontSize="12" Foreground="#9A9AA3" Margin="2,2,0,0"/>
+                                <TextBlock Text="{Binding Title}" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource Fg}" Margin="2,10,0,0" TextTrimming="CharacterEllipsis"/>
+                                <TextBlock Text="{Binding CountText}" FontSize="12" Foreground="{StaticResource Fg2}" Margin="2,2,0,0"/>
                             </StackPanel>
                         </Border>
                     </DataTemplate>
@@ -100,7 +101,7 @@
 
         <!-- вход -->
         <Border x:Name="LoginCard" Grid.Row="1" Visibility="Collapsed" HorizontalAlignment="Center" VerticalAlignment="Center"
-                Background="#0F0F12" CornerRadius="22" Padding="40,34" MaxWidth="520">
+                Background="{StaticResource Panel}" CornerRadius="22" Padding="40,34" MaxWidth="520">
             <StackPanel>
                 <Border Width="64" Height="64" CornerRadius="18" Background="#0077FF" HorizontalAlignment="Left">
                     <TextBlock Text="VK" FontSize="26" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>

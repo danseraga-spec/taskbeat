@@ -28,14 +28,14 @@ sealed class VkLoginWindow : Window
     readonly StackPanel captchaBox = new() { Visibility = Visibility.Collapsed };
     readonly TextBlock codeHint = Label("");
     readonly TextBlock message = new() { Foreground = new SolidColorBrush(Color.FromRgb(255, 120, 120)), FontSize = 13, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 10, 0, 0) };
-    readonly Button go = new() { Content = "Войти", Height = 38, Margin = new Thickness(0, 16, 0, 0), IsDefault = true };
-    readonly Button sms = new() { Content = "Прислать код по SMS", Margin = new Thickness(0, 6, 0, 0), HorizontalAlignment = HorizontalAlignment.Left };
+    readonly Button go = new() { Content = L.T("Войти"), Height = 38, Margin = new Thickness(0, 16, 0, 0), IsDefault = true };
+    readonly Button sms = new() { Content = L.T("Прислать код по SMS"), Margin = new Thickness(0, 6, 0, 0), HorizontalAlignment = HorizontalAlignment.Left };
     string? captchaSid;
     bool busy;
 
     public VkLoginWindow()
     {
-        Title = "Taskbeat — вход в VK";
+        Title = L.T("Taskbeat — вход в VK");
         Width = 420;
         SizeToContent = SizeToContent.Height;
         ResizeMode = ResizeMode.NoResize;
@@ -46,7 +46,7 @@ sealed class VkLoginWindow : Window
 #pragma warning restore WPF0001
 
         var outer = new StackPanel { Margin = new Thickness(28, 22, 28, 26) };
-        outer.Children.Add(new TextBlock { Text = "Вход в VK", Foreground = Fg, FontSize = 22, FontWeight = FontWeights.SemiBold });
+        outer.Children.Add(new TextBlock { Text = L.T("Вход в VK"), Foreground = Fg, FontSize = 22, FontWeight = FontWeights.SemiBold });
         var tabs = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 12, 0, 4) };
         tabs.Children.Add(qrTab);
         tabs.Children.Add(pwdTab);
@@ -54,14 +54,14 @@ sealed class VkLoginWindow : Window
         outer.Children.Add(tabs);
         outer.Children.Add(new TextBlock
         {
-            Text = "Неофициальный способ входа: VK может отключить его или ограничить аккаунт. Используйте на свой страх и риск.",
+            Text = L.T("Неофициальный способ входа: VK может отключить его или ограничить аккаунт. Используйте на свой страх и риск."),
             Foreground = new SolidColorBrush(Color.FromRgb(201, 166, 74)), FontSize = 11.5, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 6, 0, 0),
         });
 
         // ---- QR
         qrPanel.Children.Add(new TextBlock
         {
-            Text = "Отсканируйте камерой телефона, где открыт VK, и подтвердите вход.",
+            Text = L.T("Отсканируйте камерой телефона, где открыт VK, и подтвердите вход."),
             Foreground = Fg2, FontSize = 12, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 8, 0, 12),
         });
         qrPanel.Children.Add(new Border
@@ -70,7 +70,7 @@ sealed class VkLoginWindow : Window
             Width = 240, Height = 240, HorizontalAlignment = HorizontalAlignment.Center, Child = qrImage,
         });
         qrPanel.Children.Add(qrState);
-        qrPanel.Children.Add(Label("Код, который VK показал на телефоне"));
+        qrPanel.Children.Add(Label(L.T("Код, который VK показал на телефоне")));
         var codeRow = new DockPanel();
         DockPanel.SetDock(qrCodeGo, Dock.Right);
         codeRow.Children.Add(qrCodeGo);
@@ -86,7 +86,7 @@ sealed class VkLoginWindow : Window
         qrRefresh.SetResourceReference(StyleProperty, "Pill");
         qrCopy.SetResourceReference(StyleProperty, "Pill");
         qrRefresh.Click += async (_, _) => await StartQrAsync();
-        qrCopy.Click += (_, _) => { if (qr != null) { try { Clipboard.SetText(qr.Url); qrState.Text = "Ссылка скопирована — откройте её на телефоне."; } catch { } } };
+        qrCopy.Click += (_, _) => { if (qr != null) { try { Clipboard.SetText(qr.Url); qrState.Text = L.T("Ссылка скопирована — откройте её на телефоне."); } catch { } } };
         outer.Children.Add(qrPanel);
 
         // ---- пароль
@@ -94,12 +94,12 @@ sealed class VkLoginWindow : Window
         pwdPanel = p;
         p.Children.Add(new TextBlock
         {
-            Text = "Логин и пароль уходят только на oauth.vk.com и нигде не сохраняются — Taskbeat хранит лишь зашифрованный ключ доступа.",
+            Text = L.T("Логин и пароль уходят только на oauth.vk.com и нигде не сохраняются — Taskbeat хранит лишь зашифрованный ключ доступа."),
             Foreground = Fg2, FontSize = 12, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 8, 0, 6),
         });
-        p.Children.Add(Label("Телефон или почта"));
+        p.Children.Add(Label(L.T("Телефон или почта")));
         p.Children.Add(login);
-        p.Children.Add(Label("Пароль"));
+        p.Children.Add(Label(L.T("Пароль")));
         p.Children.Add(password);
 
         codeBox.Children.Add(codeHint);
@@ -107,7 +107,7 @@ sealed class VkLoginWindow : Window
         codeBox.Children.Add(sms);
         p.Children.Add(codeBox);
 
-        captchaBox.Children.Add(Label("Введите символы с картинки"));
+        captchaBox.Children.Add(Label(L.T("Введите символы с картинки")));
         captchaBox.Children.Add(captchaImg);
         captchaBox.Children.Add(captcha);
         p.Children.Add(captchaBox);
@@ -120,19 +120,19 @@ sealed class VkLoginWindow : Window
         // ---- запасной вход через страницу VK (старый способ)
         webPanel.Children.Add(new TextBlock
         {
-            Text = "Запасной вариант: откроется официальная страница входа VK, логин и пароль вводятся там. " +
-                   "VK иногда не выдаёт таким способом доступ к музыке — тогда используйте QR-код или пароль.",
+            Text = L.T("Запасной вариант: откроется официальная страница входа VK, логин и пароль вводятся там. ") +
+                   L.T("VK иногда не выдаёт таким способом доступ к музыке — тогда используйте QR-код или пароль."),
             Foreground = Fg2, FontSize = 12, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 8, 0, 6),
         });
         webPanel.Children.Add(webMsg);
-        var webGo = new Button { Content = "Открыть страницу VK", Height = 38, Margin = new Thickness(0, 16, 0, 0) };
+        var webGo = new Button { Content = L.T("Открыть страницу VK"), Height = 38, Margin = new Thickness(0, 16, 0, 0) };
         webGo.SetResourceReference(StyleProperty, "PillAccent");
         webGo.Click += async (_, _) =>
         {
             webMsg.Text = "";
             var t = await BrowserCheck.RunAsync(this, VkApi.AuthUrl);
             if (t is { } ok) { await AppHost.Vk.SetTokenAsync(ok.token, ok.uid); DialogResult = true; }
-            else webMsg.Text = "Вход не завершён.";
+            else webMsg.Text = L.T("Вход не завершён.");
         };
         webPanel.Children.Add(webGo);
         outer.Children.Add(webPanel);
@@ -150,9 +150,9 @@ sealed class VkLoginWindow : Window
 
     // ------------------------------------------------------------------ QR
 
-    readonly RadioButton qrTab = Tab("QR-код");
-    readonly RadioButton pwdTab = Tab("Логин и пароль");
-    readonly RadioButton webTab = Tab("Через сайт");
+    readonly RadioButton qrTab = Tab(L.T("QR-код"));
+    readonly RadioButton pwdTab = Tab(L.T("Логин и пароль"));
+    readonly RadioButton webTab = Tab(L.T("Через сайт"));
     readonly StackPanel webPanel = new() { Visibility = Visibility.Collapsed };
     readonly TextBlock webMsg = new() { Foreground = new SolidColorBrush(Color.FromRgb(255, 120, 120)), FontSize = 13, TextWrapping = TextWrapping.Wrap };
 
@@ -165,11 +165,11 @@ sealed class VkLoginWindow : Window
     StackPanel pwdPanel = null!;
     readonly Image qrImage = new() { Stretch = Stretch.Uniform };
     readonly TextBlock qrState = new() { Foreground = Fg2, FontSize = 12, TextWrapping = TextWrapping.Wrap, TextAlignment = TextAlignment.Center, Margin = new Thickness(0, 12, 0, 0) };
-    readonly Button qrRefresh = new() { Content = "Новый код", Margin = new Thickness(0, 0, 8, 0) };
-    readonly Button qrCopy = new() { Content = "Скопировать ссылку" };
+    readonly Button qrRefresh = new() { Content = L.T("Новый код"), Margin = new Thickness(0, 0, 8, 0) };
+    readonly Button qrCopy = new() { Content = L.T("Скопировать ссылку") };
     readonly System.Windows.Threading.DispatcherTimer poll = new() { Interval = TimeSpan.FromSeconds(2) };
     readonly TextBox qrCode = Field();
-    readonly Button qrCodeGo = new() { Content = "Подтвердить", Margin = new Thickness(8, 0, 0, 0) };
+    readonly Button qrCodeGo = new() { Content = L.T("Подтвердить"), Margin = new Thickness(8, 0, 0, 0) };
     VkApi.QrCode? qr;
 
     async Task ValidateQrCodeAsync()
@@ -181,14 +181,14 @@ sealed class VkLoginWindow : Window
             var r = await VkApi.QrValidateAsync(qr, qrCode.Text);
             Paths.Trace("vk-qr: код принят, поля=" +
                 (r.ValueKind == System.Text.Json.JsonValueKind.Object ? string.Join(",", r.EnumerateObject().Select(p => p.Name)) : r.ValueKind.ToString()));
-            qrState.Text = "Код принят — подтвердите вход на телефоне, если VK попросит.";
+            qrState.Text = L.T("Код принят — подтвердите вход на телефоне, если VK попросит.");
             if (!poll.IsEnabled) poll.Start();
             await PollAsync();
         }
         catch (Exception ex)
         {
             Program.Log(ex);
-            qrState.Text = ex is VkException ? ex.Message : "Не удалось отправить код.";
+            qrState.Text = ex is VkException ? ex.Message : L.T("Не удалось отправить код.");
         }
         finally { qrCodeGo.IsEnabled = true; }
     }
@@ -207,7 +207,7 @@ sealed class VkLoginWindow : Window
         poll.Stop();
         qr = null;
         qrImage.Source = null;
-        qrState.Text = "Получаю QR-код…";
+        qrState.Text = L.T("Получаю QR-код…");
         try
         {
             qr = await VkApi.QrStartAsync();
@@ -223,13 +223,13 @@ sealed class VkLoginWindow : Window
             bmp.Freeze();
             qrImage.Source = bmp;
             RenderOptions.SetBitmapScalingMode(qrImage, BitmapScalingMode.NearestNeighbor);
-            qrState.Text = "Ждём сканирования…";
+            qrState.Text = L.T("Ждём сканирования…");
             poll.Start();
         }
         catch (Exception ex)
         {
             Program.Log(ex);
-            qrState.Text = (ex is VkException ? ex.Message : "Не удалось получить QR-код.") + " Попробуйте вход по паролю.";
+            qrState.Text = (ex is VkException ? ex.Message : L.T("Не удалось получить QR-код.")) + L.T(" Попробуйте вход по паролю.");
         }
     }
 
@@ -243,7 +243,7 @@ sealed class VkLoginWindow : Window
             var s = await VkApi.QrCheckAsync(qr);
             switch (s.Status)
             {
-                case 1: qrState.Text = "Код отсканирован — подтвердите вход на телефоне."; break;
+                case 1: qrState.Text = L.T("Код отсканирован — подтвердите вход на телефоне."); break;
                 case 2:
                     if (s.Token is { Length: > 0 } && s.UserId != 0)
                     {
@@ -255,13 +255,13 @@ sealed class VkLoginWindow : Window
                     {
                         poll.Stop();
                         Paths.Trace("vk-qr: подтверждено без ключа, поля=" + s.Keys);
-                        qrState.Text = "VK подтвердил вход, но не выдал ключ для музыки. Попробуйте вход по паролю позже.";
+                        qrState.Text = L.T("VK подтвердил вход, но не выдал ключ для музыки. Попробуйте вход по паролю позже.");
                     }
                     break;
-                case 3: poll.Stop(); qrState.Text = "Вход отклонён на телефоне. Нажмите «Новый код»."; break;
+                case 3: poll.Stop(); qrState.Text = L.T("Вход отклонён на телефоне. Нажмите «Новый код»."); break;
                 case 4: await StartQrAsync(); break;
                 case 5:
-                    qrState.Text = "Введите код, который VK показал на телефоне.";
+                    qrState.Text = L.T("Введите код, который VK показал на телефоне.");
                     if (!qrCode.IsKeyboardFocused) qrCode.Focus();
                     break;
             }
@@ -280,7 +280,7 @@ sealed class VkLoginWindow : Window
     async Task SubmitAsync(bool forceSms)
     {
         if (busy) return;
-        if (login.Text.Trim().Length == 0 || password.Password.Length == 0) { message.Text = "Введите логин и пароль."; return; }
+        if (login.Text.Trim().Length == 0 || password.Password.Length == 0) { message.Text = L.T("Введите логин и пароль."); return; }
         busy = true;
         go.IsEnabled = sms.IsEnabled = false;
         message.Text = "";
@@ -303,9 +303,9 @@ sealed class VkLoginWindow : Window
                 case "need_validation" when r.ValidationType is { Length: > 0 }:
                     codeBox.Visibility = Visibility.Visible;
                     codeHint.Text = r.ValidationType.Contains("app")
-                        ? "Код подтверждения из приложения VK или генератора кодов"
-                        : $"Код из SMS{(r.PhoneMask is { Length: > 0 } m ? " на " + m : "")}";
-                    message.Text = forceSms ? "Код отправлен." : "";
+                        ? L.T("Код подтверждения из приложения VK или генератора кодов")
+                        : $"Код из SMS{(r.PhoneMask is { Length: > 0 } m ? L.T(" на ") + m : "")}";
+                    message.Text = forceSms ? L.T("Код отправлен.") : "";
                     code.Focus();
                     break;
                 case "need_validation" when r.ValidationUrl is { Length: > 0 } url:
@@ -317,29 +317,29 @@ sealed class VkLoginWindow : Window
                         DialogResult = true;
                         return;
                     }
-                    message.Text = "Проверка VK не завершена. Попробуйте ещё раз.";
+                    message.Text = L.T("Проверка VK не завершена. Попробуйте ещё раз.");
                     break;
                 case "need_captcha":
                     captchaSid = r.CaptchaSid;
                     captchaBox.Visibility = Visibility.Visible;
                     captcha.Text = "";
                     if (r.CaptchaImg is { Length: > 0 } img) captchaImg.Source = new BitmapImage(new Uri(img));
-                    message.Text = "VK просит подтвердить, что вы не робот.";
+                    message.Text = L.T("VK просит подтвердить, что вы не робот.");
                     captcha.Focus();
                     break;
                 case "invalid_client":
                 case "invalid_request" when (r.Description ?? "").Contains("code", StringComparison.OrdinalIgnoreCase):
-                    message.Text = codeBox.IsVisible ? "Неверный код или пароль." : "Неверный логин или пароль.";
+                    message.Text = codeBox.IsVisible ? L.T("Неверный код или пароль.") : L.T("Неверный логин или пароль.");
                     break;
                 default:
-                    message.Text = "VK: " + (r.Description ?? r.Error ?? "неизвестная ошибка");
+                    message.Text = "VK: " + (r.Description ?? r.Error ?? L.T("неизвестная ошибка"));
                     break;
             }
         }
         catch (Exception ex)
         {
             Program.Log(ex);
-            message.Text = "Не удалось связаться с VK. Проверьте интернет.";
+            message.Text = L.T("Не удалось связаться с VK. Проверьте интернет.");
         }
         finally
         {

@@ -101,7 +101,7 @@ sealed class IslandWindow : Window
         ShowInTaskbar = false;
         ShowActivated = false;
         Topmost = true;
-        Title = "Taskbeat — остров";
+        Title = L.T("Taskbeat — остров");
         Left = Top = -32000;
         Width = Height = 10;
 
@@ -294,8 +294,12 @@ sealed class IslandWindow : Window
         });
     }
 
-    public void Notify(string left, string right, Color color) => MainWindow.view.Notify(left, right, color);
+    public void Notify(string left, string right, Color color, double seconds = 2) => MainWindow.view.Notify(left, right, color, seconds);
+    public void ShowActivityAll(ActivityInfo a, double seconds) { if (!MainWindow.view.Expanded) MainWindow.view.ShowActivity(a, seconds); }
     public void ShowNotification(string app, string title, string body) => MainWindow.view.ShowNotification(app, title, body);
+
+    /// <summary>Где-то открыто полноэкранное окно (игра, видео) — не лезем с окнами.</summary>
+    public bool AnyFullscreen => fullscreen || others.Any(o => o.fullscreen);
 
     void SetFullscreen(bool fs)
     {
@@ -447,17 +451,28 @@ sealed class IslandWindow : Window
     public void ShowMenu()
     {
         IntPtr m = CreatePopupMenu();
-        AppendMenuW(m, 0, 6, "Открыть Taskbeat");
-        if (AppHost.Web.CanPip) AppendMenuW(m, 0, 7, "Видео в картинку-в-картинке");
+        AppendMenuW(m, 0, 6, L.T("Открыть Taskbeat"));
+        if (AppHost.Web.CanPip) AppendMenuW(m, 0, 7, L.T("Видео в картинку-в-картинке"));
         AppendMenuW(m, 0x800, 0, null); // MF_SEPARATOR
-        AppendMenuW(m, 0, 3, "Настройки острова…");
-        AppendMenuW(m, 0, 4, "Новое напоминание…");
-        AppendMenuW(m, 0, 8, "Отзыв или баг…");
+        AppendMenuW(m, 0, 3, L.T("Настройки острова…"));
+        AppendMenuW(m, 0, 4, L.T("Новое напоминание…"));
+        IntPtr tm = CreatePopupMenu();
+        if (Live.TimerRunning) AppendMenuW(tm, 0, 30, L.T("Остановить таймер"));
+        else
+        {
+            foreach (int min in new[] { 1, 3, 5, 10, 15, 20, 30, 45, 60 }) AppendMenuW(tm, 0, (nuint)(100 + min), L.F("{0} мин", min));
+            AppendMenuW(tm, 0x800, 0, null);
+            AppendMenuW(tm, 0, 31, L.T("Помодоро 25 + 5"));
+        }
+        AppendMenuW(tm, 0x800, 0, null);
+        AppendMenuW(tm, Live.StopwatchRunning ? 0x8u : 0u, 32, Live.StopwatchRunning ? L.T("Остановить секундомер") : L.T("Секундомер"));
+        AppendMenuW(m, 0x10, (nuint)(nint)tm, L.T("Таймер")); // MF_POPUP
+        AppendMenuW(m, 0, 8, L.T("Отзыв или баг…"));
         AppendMenuW(m, 0x800, 0, null);
-        AppendMenuW(m, SettingsStore.Current.CollapseToStrip ? 0x8u : 0u, 5, "Уходить в полоску в покое");
-        AppendMenuW(m, Autostart.Enabled ? 0x8u : 0u, 1, "Запускать вместе с Windows"); // MF_CHECKED
+        AppendMenuW(m, SettingsStore.Current.CollapseToStrip ? 0x8u : 0u, 5, L.T("Уходить в полоску в покое"));
+        AppendMenuW(m, Autostart.Enabled ? 0x8u : 0u, 1, L.T("Запускать вместе с Windows")); // MF_CHECKED
         AppendMenuW(m, 0x800, 0, null);
-        AppendMenuW(m, 0, 2, "Выход");
+        AppendMenuW(m, 0, 2, L.T("Выход"));
         GetCursorPos(out var pt);
         SetForegroundWindow(hwnd);
         int cmd = TrackPopupMenuEx(m, 0x100 | 0x2 | 0x20, pt.X, pt.Y, hwnd, IntPtr.Zero); // RETURNCMD|RIGHTBUTTON|BOTTOMALIGN
@@ -468,6 +483,10 @@ sealed class IslandWindow : Window
         else if (cmd == 6) AppHost.ShowHub();
         else if (cmd == 7) AppHost.Web.EnterPip();
         else if (cmd == 8) FeedbackWindow.Open();
+        else if (cmd == 30) Live.StopTimer();
+        else if (cmd == 31) Live.StartPomodoro();
+        else if (cmd == 32) Live.ToggleStopwatch();
+        else if (cmd > 100 && cmd <= 160) Live.StartTimer(TimeSpan.FromMinutes(cmd - 100));
         else if (cmd == 3) OpenSettings();
         else if (cmd == 4) OpenSettings(2);
         else if (cmd == 5)

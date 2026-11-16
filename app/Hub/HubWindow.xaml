@@ -6,7 +6,7 @@
         Icon="/Assets/taskbeat.ico"
         Width="1200" Height="780" MinWidth="920" MinHeight="600"
         WindowStartupLocation="CenterScreen"
-        Background="#000000" Foreground="White"
+        Background="{StaticResource Bg}" Foreground="{StaticResource Fg}"
         FontFamily="Segoe UI Variable Display, Segoe UI"
         UseLayoutRounding="True">
     <WindowChrome.WindowChrome>
@@ -29,7 +29,7 @@
                 <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="8,4,0,8">
                     <Image Source="{StaticResource Logo}" Width="36" Height="36"/>
                     <StackPanel Margin="11,0,0,0" VerticalAlignment="Center">
-                        <TextBlock Text="Taskbeat" FontSize="22" FontWeight="Bold" Foreground="White"/>
+                        <TextBlock Text="Taskbeat" FontSize="22" FontWeight="Bold" Foreground="{StaticResource Fg}"/>
                         <TextBlock Text="музыка на панели задач" FontSize="11" Foreground="{StaticResource Fg2}" Margin="0,-2,0,0"/>
                     </StackPanel>
                 </StackPanel>
@@ -47,6 +47,11 @@
                         <RadioButton Style="{StaticResource Nav}" GroupName="nav" Tag="&#xE734;" Content="Рекомендации" Checked="NavChecked" Uid="vk:recs"/>
                         <RadioButton Style="{StaticResource Nav}" GroupName="nav" Tag="&#xE90B;" Content="Плейлисты" Checked="NavChecked" Uid="vk:playlists"/>
                         <RadioButton Style="{StaticResource Nav}" GroupName="nav" Tag="&#xE721;" Content="Поиск" Checked="NavChecked" Uid="vk:search"/>
+
+                        <TextBlock Style="{StaticResource NavHeader}" Text="БИБЛИОТЕКА"/>
+                        <RadioButton Style="{StaticResource Nav}" GroupName="nav" Tag="&#xE8FD;" Content="Очередь" Checked="NavChecked" Uid="vk:queue"/>
+                        <RadioButton Style="{StaticResource Nav}" GroupName="nav" Tag="&#xE81C;" Content="История" Checked="NavChecked" Uid="vk:history"/>
+                        <RadioButton Style="{StaticResource Nav}" GroupName="nav" Tag="&#xE7F8;" Content="На компьютере" Checked="NavChecked" Uid="local"/>
 
                         <TextBlock Style="{StaticResource NavHeader}" Text="СЕРВИСЫ"/>
                         <RadioButton Style="{StaticResource Nav}" GroupName="nav" Tag="&#xE714;" Content="YouTube" Checked="NavChecked" Uid="web:youtube"/>
@@ -77,7 +82,7 @@
         <!-- настройки воспроизведения -->
         <Popup x:Name="PlaySettings" PlacementTarget="{Binding ElementName=PlaySettingsBtn}" Placement="Top" StaysOpen="False"
                AllowsTransparency="True" PopupAnimation="Fade" VerticalOffset="-10" HorizontalOffset="-150">
-            <Border Background="#17171B" CornerRadius="16" Padding="20,16,20,18" Width="340" BorderBrush="{StaticResource Line}" BorderThickness="1">
+            <Border Background="{StaticResource Panel2}" CornerRadius="16" Padding="20,16,20,18" Width="340" BorderBrush="{StaticResource Line}" BorderThickness="1">
                 <StackPanel>
                     <TextBlock Text="Настройки воспроизведения" FontSize="16" FontWeight="SemiBold"/>
 
@@ -175,7 +180,7 @@
 
         <!-- всплывающее сообщение -->
         <Border x:Name="Toast" Grid.ColumnSpan="2" HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,16"
-                Background="#1E1E22" CornerRadius="18" Padding="18,9" Visibility="Collapsed">
+                Background="{StaticResource Hover}" CornerRadius="18" Padding="18,9" Visibility="Collapsed">
             <TextBlock x:Name="ToastText" FontSize="13"/>
         </Border>
     </Grid>

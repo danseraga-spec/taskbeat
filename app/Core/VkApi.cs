@@ -15,9 +15,9 @@ public sealed class VkPlaylist
     public int Count { get; init; }
     public string? AccessKey { get; init; }
     public string? Cover { get; init; }
-    public string CountText => $"{Count} {Plural(Count, "трек", "трека", "треков")}";
+    public string CountText => $"{Count} {Plural(Count, L.T("трек"), L.T("трека"), L.T("треков"))}";
 
-    static string Plural(int n, string one, string few, string many) =>
+    static string Plural(int n, string one, string few, string many) => L.En ? (n == 1 ? one : many) :
         (n % 10 == 1 && n % 100 != 11) ? one : (n % 10 is >= 2 and <= 4 && n % 100 is < 12 or > 14) ? few : many;
 }
 
@@ -273,10 +273,10 @@ sealed class VkApi
             if (noAudio) throw new VkException(5, "Этот вход не даёт доступа к музыке — войдите заново по логину и паролю");
             throw new VkException(code, code switch
             {
-                5 => "Сессия VK истекла — войдите заново",
-                6 => "Слишком много запросов, попробуйте чуть позже",
-                25 => "VK требует подтвердить токен — войдите заново",
-                201 or 203 => "Нет доступа к аудио",
+                5 => L.T("Сессия VK истекла — войдите заново"),
+                6 => L.T("Слишком много запросов, попробуйте чуть позже"),
+                25 => L.T("VK требует подтвердить токен — войдите заново"),
+                201 or 203 => L.T("Нет доступа к аудио"),
                 _ => $"VK: {msg} ({code})",
             });
         }
@@ -331,8 +331,37 @@ sealed class VkApi
     public async Task<List<Track>> MyAudioAsync(int offset, int count) =>
         Items(await Call("audio.get", new() { ["owner_id"] = UserId.ToString(), ["offset"] = offset.ToString(), ["count"] = count.ToString() }));
 
-    public async Task<List<Track>> SearchAsync(string q) =>
-        Items(await Call("audio.search", new() { ["q"] = q, ["count"] = "200", ["auto_complete"] = "1", ["sort"] = "2" }));
+    /// <summary>Свежие ссылки для треков (история: старые ссылки VK истекают).</summary>
+    public async Task<List<Track>> ByIdAsync(IEnumerable<Track> tracks)
+    {
+        var res = new List<Track>();
+        foreach (var chunk in tracks.Chunk(100))
+        {
+            string ids = string.Join(",", chunk.Select(t => t.AccessKey is { Length: > 0 } k ? $"{t.OwnerId}_{t.AudioId}_{k}" : $"{t.OwnerId}_{t.AudioId}"));
+            res.AddRange(Items(await Call("audio.getById", new() { ["audios"] = ids })));
+        }
+        return res;
+    }
+
+    public async Task<List<Track>> SearchAsync(string q, int count = 200) =>
+        Items(await Call("audio.search", new() { ["q"] = q, ["count"] = count.ToString(), ["auto_complete"] = "1", ["sort"] = "2" }));
+
+    public async Task<VkPlaylist> CreatePlaylistAsync(string title)
+    {
+        var r = await Call("audio.createPlaylist", new() { ["owner_id"] = UserId.ToString(), ["title"] = title });
+        return new VkPlaylist
+        {
+            Id = r.GetProperty("id").GetInt64(), OwnerId = r.GetProperty("owner_id").GetInt64(), Title = title,
+            AccessKey = r.TryGetProperty("access_key", out var k) ? k.GetString() : null,
+        };
+    }
+
+    public async Task AddToPlaylistAsync(VkPlaylist p, IEnumerable<Track> tracks) =>
+        await Call("audio.addToPlaylist", new()
+        {
+            ["owner_id"] = p.OwnerId.ToString(), ["playlist_id"] = p.Id.ToString(),
+            ["audio_ids"] = string.Join(",", tracks.Select(t => t.AccessKey != null ? $"{t.Id}_{t.AccessKey}" : t.Id)),
+        });
 
     public async Task<List<Track>> RecommendationsAsync() =>
         Items(await Call("audio.getRecommendations", new() { ["count"] = "200", ["shuffle"] = "0" }));
@@ -394,7 +423,7 @@ sealed class VkApi
 
     public static VkPlaylist? AlbumOf(Track t) => t.AlbumId == 0 ? null : new VkPlaylist
     {
-        Id = t.AlbumId, OwnerId = t.AlbumOwnerId, AccessKey = t.AlbumAccessKey, Title = t.AlbumTitle ?? "Альбом",
+        Id = t.AlbumId, OwnerId = t.AlbumOwnerId, AccessKey = t.AlbumAccessKey, Title = t.AlbumTitle ?? L.T("Альбом"),
     };
 
     /// <summary>Текст песни из VK: синхронизированный (timestamps) или обычный.</summary>

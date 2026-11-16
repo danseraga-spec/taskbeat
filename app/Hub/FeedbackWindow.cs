@@ -51,23 +51,23 @@ static class Feedback
             using var resp = await Http.SendAsync(req);
             return (int)resp.StatusCode switch
             {
-                200 => (true, "Спасибо! Отправлено."),
-                429 => (false, "Слишком много отправок подряд — попробуйте через час."),
-                413 => (false, "Скриншот слишком большой."),
+                200 => (true, L.T("Спасибо! Отправлено.")),
+                429 => (false, L.T("Слишком много отправок подряд — попробуйте через час.")),
+                413 => (false, L.T("Скриншот слишком большой.")),
                 _ => (false, $"Не удалось отправить ({(int)resp.StatusCode}). Попробуйте позже."),
             };
         }
         catch (Exception ex)
         {
             Program.Log(ex);
-            return (false, "Нет связи с сервером. Проверьте интернет.");
+            return (false, L.T("Нет связи с сервером. Проверьте интернет."));
         }
     }
 
     public static string AppInfo()
     {
         var v = typeof(Feedback).Assembly.GetName().Version?.ToString(3);
-        return $"Taskbeat {v} · Windows {Environment.OSVersion.Version} · {(Perf.Game ? "игровой" : "классический")} режим";
+        return $"Taskbeat {v} · Windows {Environment.OSVersion.Version} · {(Perf.Game ? L.T("игровой") : L.T("классический"))} режим";
     }
 }
 
@@ -75,19 +75,19 @@ sealed class FeedbackWindow : Window
 {
     static readonly Brush Fg2 = new SolidColorBrush(Color.FromRgb(150, 150, 158));
 
-    readonly RadioButton bug = Tab("Баг"), idea = Tab("Идея"), review = Tab("Отзыв");
+    readonly RadioButton bug = Tab(L.T("Баг")), idea = Tab(L.T("Идея")), review = Tab(L.T("Отзыв"));
     readonly TextBox text = new() { AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, Height = 150, FontSize = 14, Padding = new Thickness(10, 8, 10, 8), VerticalScrollBarVisibility = ScrollBarVisibility.Auto, MaxLength = 3500 };
     readonly TextBox contact = new() { Height = 36, FontSize = 14, Padding = new Thickness(10, 7, 10, 0), MaxLength = 200 };
-    readonly CheckBox withInfo = new() { Content = "Приложить версию Taskbeat и Windows", IsChecked = true, Margin = new Thickness(0, 12, 0, 0) };
+    readonly CheckBox withInfo = new() { Content = L.T("Приложить версию Taskbeat и Windows"), IsChecked = true, Margin = new Thickness(0, 12, 0, 0) };
     readonly Image preview = new() { MaxHeight = 130, Stretch = Stretch.Uniform, HorizontalAlignment = HorizontalAlignment.Left };
     readonly Border previewBox = new() { Visibility = Visibility.Collapsed, CornerRadius = new CornerRadius(10), BorderThickness = new Thickness(1), BorderBrush = new SolidColorBrush(Color.FromRgb(50, 50, 56)), Padding = new Thickness(6), Margin = new Thickness(0, 8, 0, 0), HorizontalAlignment = HorizontalAlignment.Left };
     readonly TextBlock status = new() { FontSize = 13, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 12, 0, 0) };
-    readonly Button send = new() { Content = "Отправить", Height = 38, Margin = new Thickness(0, 14, 0, 0), HorizontalAlignment = HorizontalAlignment.Left, Padding = new Thickness(26, 0, 26, 0) };
+    readonly Button send = new() { Content = L.T("Отправить"), Height = 38, Margin = new Thickness(0, 14, 0, 0), HorizontalAlignment = HorizontalAlignment.Left, Padding = new Thickness(26, 0, 26, 0) };
     byte[]? jpeg;
 
     public FeedbackWindow()
     {
-        Title = "Taskbeat — отзыв или баг";
+        Title = L.T("Taskbeat — отзыв или баг");
         Width = 520;
         SizeToContent = SizeToContent.Height;
         ResizeMode = ResizeMode.NoResize;
@@ -98,8 +98,8 @@ sealed class FeedbackWindow : Window
 #pragma warning restore WPF0001
 
         var root = new StackPanel { Margin = new Thickness(28, 22, 28, 26) };
-        root.Children.Add(new TextBlock { Text = "Отзыв или баг", FontSize = 22, FontWeight = FontWeights.SemiBold, Foreground = Brushes.White });
-        root.Children.Add(new TextBlock { Text = "Сообщение придёт разработчику. Опишите, что случилось или что хотелось бы улучшить.", Foreground = Fg2, FontSize = 12.5, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 4, 0, 12) });
+        root.Children.Add(new TextBlock { Text = L.T("Отзыв или баг"), FontSize = 22, FontWeight = FontWeights.SemiBold, Foreground = Brushes.White });
+        root.Children.Add(new TextBlock { Text = L.T("Сообщение придёт разработчику. Опишите, что случилось или что хотелось бы улучшить."), Foreground = Fg2, FontSize = 12.5, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 4, 0, 12) });
 
         var tabs = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 10) };
         tabs.Children.Add(bug); tabs.Children.Add(idea); tabs.Children.Add(review);
@@ -107,18 +107,18 @@ sealed class FeedbackWindow : Window
         root.Children.Add(tabs);
 
         root.Children.Add(text);
-        root.Children.Add(Label("Как с вами связаться, если нужен ответ (необязательно)"));
+        root.Children.Add(Label(L.T("Как с вами связаться, если нужен ответ (необязательно)")));
         root.Children.Add(contact);
 
-        root.Children.Add(Label("Скриншот (необязательно)"));
+        root.Children.Add(Label(L.T("Скриншот (необязательно)")));
         var shots = new StackPanel { Orientation = Orientation.Horizontal };
-        shots.Children.Add(Pill("Снимок экрана", async () => await CaptureAsync()));
-        shots.Children.Add(Pill("Из буфера", PasteImage));
-        shots.Children.Add(Pill("Файл…", PickFile));
+        shots.Children.Add(Pill(L.T("Снимок экрана"), async () => await CaptureAsync()));
+        shots.Children.Add(Pill(L.T("Из буфера"), PasteImage));
+        shots.Children.Add(Pill(L.T("Файл…"), PickFile));
         root.Children.Add(shots);
         var pv = new StackPanel();
         pv.Children.Add(preview);
-        var remove = new Button { Content = "Убрать", Margin = new Thickness(0, 6, 0, 0), HorizontalAlignment = HorizontalAlignment.Left };
+        var remove = new Button { Content = L.T("Убрать"), Margin = new Thickness(0, 6, 0, 0), HorizontalAlignment = HorizontalAlignment.Left };
         remove.SetResourceReference(StyleProperty, "Pill");
         remove.Click += (_, _) => SetImage(null);
         pv.Children.Add(remove);
@@ -134,7 +134,7 @@ sealed class FeedbackWindow : Window
         if (!Feedback.Configured)
         {
             send.IsEnabled = false;
-            Status("Отправка отзывов в этой сборке не настроена.", false);
+            Status(L.T("Отправка отзывов в этой сборке не настроена."), false);
         }
         Content = root;
         Loaded += (_, _) => text.Focus();
@@ -202,14 +202,14 @@ sealed class FeedbackWindow : Window
         try
         {
             if (Clipboard.ContainsImage() && Clipboard.GetImage() is { } img) SetImage(img);
-            else Status("В буфере обмена нет картинки.", false);
+            else Status(L.T("В буфере обмена нет картинки."), false);
         }
-        catch { Status("Не удалось прочитать буфер обмена.", false); }
+        catch { Status(L.T("Не удалось прочитать буфер обмена."), false); }
     }
 
     void PickFile()
     {
-        var dlg = new Microsoft.Win32.OpenFileDialog { Filter = "Изображения|*.png;*.jpg;*.jpeg;*.bmp;*.gif;*.webp" };
+        var dlg = new Microsoft.Win32.OpenFileDialog { Filter = L.T("Изображения|*.png;*.jpg;*.jpeg;*.bmp;*.gif;*.webp") };
         if (dlg.ShowDialog(this) != true) return;
         try
         {
@@ -220,16 +220,16 @@ sealed class FeedbackWindow : Window
             bi.EndInit();
             SetImage(bi);
         }
-        catch { Status("Не удалось открыть картинку.", false); }
+        catch { Status(L.T("Не удалось открыть картинку."), false); }
     }
 
     // ------------------------------------------------------------------ отправка
 
     async Task SendAsync()
     {
-        if (text.Text.Trim().Length < 3) { Status("Напишите хотя бы пару слов.", false); text.Focus(); return; }
+        if (text.Text.Trim().Length < 3) { Status(L.T("Напишите хотя бы пару слов."), false); text.Focus(); return; }
         send.IsEnabled = false;
-        Status("Отправляю…", true);
+        Status(L.T("Отправляю…"), true);
         string kind = bug.IsChecked == true ? "bug" : idea.IsChecked == true ? "idea" : "review";
         var (ok, msg) = await Feedback.SendAsync(kind, text.Text.Trim(), contact.Text.Trim(), withInfo.IsChecked == true ? Feedback.AppInfo() : null, jpeg);
         Status(msg, ok);

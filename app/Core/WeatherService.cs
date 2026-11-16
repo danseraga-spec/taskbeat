@@ -9,18 +9,18 @@ sealed record WeatherInfo(double Temp, double Feels, int Code, bool IsDay, doubl
 {
     public string Desc => Code switch
     {
-        0 => IsDay ? "Ясно" : "Ясная ночь",
-        1 => "Малооблачно",
-        2 => "Переменная облачность",
-        3 => "Пасмурно",
-        45 or 48 => "Туман",
-        >= 51 and <= 57 => "Морось",
-        >= 61 and <= 65 => "Дождь",
-        66 or 67 => "Ледяной дождь",
-        >= 71 and <= 77 => "Снег",
-        >= 80 and <= 82 => "Ливень",
-        85 or 86 => "Снегопад",
-        >= 95 => "Гроза",
+        0 => IsDay ? L.T("Ясно") : L.T("Ясная ночь"),
+        1 => L.T("Малооблачно"),
+        2 => L.T("Переменная облачность"),
+        3 => L.T("Пасмурно"),
+        45 or 48 => L.T("Туман"),
+        >= 51 and <= 57 => L.T("Морось"),
+        >= 61 and <= 65 => L.T("Дождь"),
+        66 or 67 => L.T("Ледяной дождь"),
+        >= 71 and <= 77 => L.T("Снег"),
+        >= 80 and <= 82 => L.T("Ливень"),
+        85 or 86 => L.T("Снегопад"),
+        >= 95 => L.T("Гроза"),
         _ => "—",
     };
 
@@ -34,7 +34,7 @@ sealed class WeatherService
     readonly DispatcherTimer timer = new(DispatcherPriority.Background) { Interval = TimeSpan.FromMinutes(30) };
 
     public WeatherInfo? Current { get; private set; }
-    public string Status { get; private set; } = "Город не указан";
+    public string Status { get; private set; } = L.T("Город не указан");
     public event Action? Changed;
 
     readonly Dispatcher ui = Dispatcher.CurrentDispatcher;
@@ -65,7 +65,7 @@ sealed class WeatherService
         if (s.Lat is not { } lat || s.Lon is not { } lon)
         {
             Current = null;
-            Status = "Город не указан";
+            Status = L.T("Город не указан");
             RaiseChanged();
             return;
         }
@@ -96,7 +96,7 @@ sealed class WeatherService
         }
         catch (Exception ex)
         {
-            Status = "Нет связи с сервером погоды";
+            Status = L.T("Нет связи с сервером погоды");
             System.Diagnostics.Debug.WriteLine(ex);
         }
         RaiseChanged();

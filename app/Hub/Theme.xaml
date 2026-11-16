@@ -95,11 +95,11 @@
         <Setter Property="Width" Value="44"/>
         <Setter Property="Height" Value="44"/>
         <Setter Property="FontSize" Value="17"/>
-        <Setter Property="Foreground" Value="Black"/>
+        <Setter Property="Foreground" Value="{StaticResource Bg}"/>
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="Button">
-                    <Border x:Name="b" Background="White" CornerRadius="22">
+                    <Border x:Name="b" Background="{StaticResource Fg}" CornerRadius="22">
                         <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                     </Border>
                     <ControlTemplate.Triggers>

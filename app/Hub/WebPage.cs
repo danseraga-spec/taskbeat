@@ -17,19 +17,19 @@ sealed class WebPage : UserControl
     {
         this.surface = surface;
         var bar = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(26, 0, 26, 8) };
-        bar.Children.Add(IconButton("", "Назад", () => { if (surface.Web?.CanGoBack == true) surface.Web.GoBack(); }));
-        bar.Children.Add(IconButton("", "Вперёд", () => { if (surface.Web?.CanGoForward == true) surface.Web.GoForward(); }));
-        bar.Children.Add(IconButton("", "Обновить", () => surface.Web?.Reload()));
-        bar.Children.Add(IconButton("", "На главную", () => surface.Web?.Navigate(surface.Home)));
+        bar.Children.Add(IconButton("", L.T("Назад"), () => { if (surface.Web?.CanGoBack == true) surface.Web.GoBack(); }));
+        bar.Children.Add(IconButton("", L.T("Вперёд"), () => { if (surface.Web?.CanGoForward == true) surface.Web.GoForward(); }));
+        bar.Children.Add(IconButton("", L.T("Обновить"), () => surface.Web?.Reload()));
+        bar.Children.Add(IconButton("", L.T("На главную"), () => surface.Web?.Navigate(surface.Home)));
         if (surface.Key == "youtube")
-            bar.Children.Add(IconButton("", "Видео в картинку-в-картинке", () => AppHost.Web.EnterPip()));
+            bar.Children.Add(IconButton("", L.T("Видео в картинку-в-картинке"), () => AppHost.Web.EnterPip()));
         hint = new TextBlock
         {
             Text = surface.Key switch
             {
-                "youtube" => "Войдите в аккаунт Google прямо здесь — вход сохранится. Видео можно вынести в картинку-в-картинке.",
-                "yandex" => "Войдите в Яндекс прямо здесь — вход сохранится.",
-                _ => "Войдите прямо здесь — вход сохранится.",
+                "youtube" => L.T("Войдите в аккаунт Google прямо здесь — вход сохранится. Видео можно вынести в картинку-в-картинке."),
+                "yandex" => L.T("Войдите в Яндекс прямо здесь — вход сохранится."),
+                _ => L.T("Войдите прямо здесь — вход сохранится."),
             },
             Foreground = (Brush)Application.Current.TryFindResource("Fg3") ?? Brushes.Gray,
             FontSize = 12, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(14, 0, 0, 0),
@@ -38,9 +38,9 @@ sealed class WebPage : UserControl
 
         status = new TextBlock
         {
-            Text = "Загрузка…", Foreground = Brushes.Gray, FontSize = 13, HorizontalAlignment = HorizontalAlignment.Center,
+            Text = L.T("Загрузка…"), Foreground = Brushes.Gray, FontSize = 13, HorizontalAlignment = HorizontalAlignment.Center,
         };
-        back = new Button { Content = "Вернуть видео сюда", Margin = new Thickness(0, 14, 0, 0), Visibility = Visibility.Collapsed };
+        back = new Button { Content = L.T("Вернуть видео сюда"), Margin = new Thickness(0, 14, 0, 0), Visibility = Visibility.Collapsed };
         back.SetResourceReference(StyleProperty, "Pill");
         back.Click += (_, _) => AppHost.Web.ExitPip(false);
         var center = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
@@ -56,7 +56,7 @@ sealed class WebPage : UserControl
         AppHost.Web.PipStateChanged += () =>
         {
             bool pip = surface.InPip;
-            status.Text = pip ? "Видео играет в картинке-в-картинке" : "Загрузка…";
+            status.Text = pip ? L.T("Видео играет в картинке-в-картинке") : L.T("Загрузка…");
             back.Visibility = pip ? Visibility.Visible : Visibility.Collapsed;
         };
 
@@ -87,7 +87,7 @@ sealed class WebPage : UserControl
         catch (Exception ex)
         {
             Program.Log(ex);
-            status.Text = "Не удалось запустить WebView2";
+            status.Text = L.T("Не удалось запустить WebView2");
         }
     }
 

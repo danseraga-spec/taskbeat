@@ -10,18 +10,18 @@ public static class Options
 {
     public static Option<InfoKind>[] InfoKinds { get; } =
     [
-        new(InfoKind.Nothing, "Ничего (пустая пилюля)"),
-        new(InfoKind.Clock, "Часы"),
-        new(InfoKind.Weather, "Погода"),
-        new(InfoKind.ClockWeather, "Часы и погода"),
-        new(InfoKind.Date, "Дата"),
-        new(InfoKind.NextReminder, "Ближайшее напоминание"),
-        new(InfoKind.Custom, "Свой текст"),
+        new(InfoKind.Nothing, L.T("Ничего (пустая пилюля)")),
+        new(InfoKind.Clock, L.T("Часы")),
+        new(InfoKind.Weather, L.T("Погода")),
+        new(InfoKind.ClockWeather, L.T("Часы и погода")),
+        new(InfoKind.Date, L.T("Дата")),
+        new(InfoKind.NextReminder, L.T("Ближайшее напоминание")),
+        new(InfoKind.Custom, L.T("Свой текст")),
     ];
 
     public static Option<double>[] Scales { get; } =
     [
-        new(0, "Авто (по разрешению экрана)"),
+        new(0, L.T("Авто (по разрешению экрана)")),
         new(1, "100 %"),
         new(1.2, "120 %"),
         new(1.4, "140 %"),
@@ -30,10 +30,10 @@ public static class Options
 
     public static Option<Repeat>[] Repeats { get; } =
     [
-        new(Repeat.None, "Один раз"),
-        new(Repeat.Daily, "Каждый день"),
-        new(Repeat.Weekdays, "По будням"),
-        new(Repeat.Weekly, "Каждую неделю"),
+        new(Repeat.None, L.T("Один раз")),
+        new(Repeat.Daily, L.T("Каждый день")),
+        new(Repeat.Weekdays, L.T("По будням")),
+        new(Repeat.Weekly, L.T("Каждую неделю")),
     ];
 }
 
@@ -66,7 +66,7 @@ internal partial class IslandSettingsPage : UserControl
         model = SettingsStore.Current.Clone();
         DataContext = model;
         AutoStartBox.IsChecked = Autostart.Enabled;
-        CityStatus.Text = model.Lat != null ? $"Сейчас: {model.CityResolved}" : "Город не задан — погода не показывается";
+        CityStatus.Text = model.Lat != null ? $"Сейчас: {model.CityResolved}" : L.T("Город не задан — погода не показывается");
         SaveError.Text = "";
     }
 
@@ -88,15 +88,15 @@ internal partial class IslandSettingsPage : UserControl
     {
         RemError.Text = "";
         string text = RemText.Text.Trim();
-        if (text.Length == 0) { RemError.Text = "Напишите, о чём напомнить."; return; }
+        if (text.Length == 0) { RemError.Text = L.T("Напишите, о чём напомнить."); return; }
         if (!TimeSpan.TryParse(RemTime.Text.Trim(), out var t) || t < TimeSpan.Zero || t >= TimeSpan.FromDays(1))
-        { RemError.Text = "Время в формате ЧЧ:ММ, например 18:30."; return; }
+        { RemError.Text = L.T("Время в формате ЧЧ:ММ, например 18:30."); return; }
         var repeat = (Repeat)(RemRepeat.SelectedValue ?? Repeat.None);
         var when = (RemDate.SelectedDate ?? DateTime.Today).Date + new TimeSpan(t.Hours, t.Minutes, 0);
         var r = new Reminder { Text = text, When = when, Repeat = repeat };
         if (when <= DateTime.Now)
         {
-            if (repeat == Repeat.None) { RemError.Text = "Это время уже прошло."; return; }
+            if (repeat == Repeat.None) { RemError.Text = L.T("Это время уже прошло."); return; }
             r.When = r.Next(DateTime.Now) ?? when;
         }
         SettingsStore.Current.Reminders.Add(r);
@@ -122,21 +122,21 @@ internal partial class IslandSettingsPage : UserControl
         {
             model.Lat = model.Lon = null;
             model.CityResolved = "";
-            CityStatus.Text = "Город не задан — погода не показывается";
+            CityStatus.Text = L.T("Город не задан — погода не показывается");
             return true;
         }
-        CityStatus.Text = "Ищу…";
+        CityStatus.Text = L.T("Ищу…");
         try
         {
             var r = await WeatherService.GeocodeAsync(city);
-            if (r == null) { CityStatus.Text = "Такой город не найден"; return false; }
+            if (r == null) { CityStatus.Text = L.T("Такой город не найден"); return false; }
             (model.Lat, model.Lon, model.CityResolved) = (r.Value.lat, r.Value.lon, r.Value.name);
             CityStatus.Text = $"Найдено: {r.Value.name}";
             return true;
         }
         catch
         {
-            CityStatus.Text = "Нет связи с сервером погоды";
+            CityStatus.Text = L.T("Нет связи с сервером погоды");
             return false;
         }
     }
@@ -155,7 +155,7 @@ internal partial class IslandSettingsPage : UserControl
         var cur = SettingsStore.Current;
         if (model.City.Trim() != cur.City.Trim() || (model.City.Trim().Length > 0 && model.Lat == null))
         {
-            if (!await ResolveCity()) { Tabs.SelectedIndex = 3; SaveError.Text = "Не удалось найти город."; return; }
+            if (!await ResolveCity()) { Tabs.SelectedIndex = 3; SaveError.Text = L.T("Не удалось найти город."); return; }
         }
 
         if (AutoStartBox.IsChecked != Autostart.Enabled) Autostart.Enabled = AutoStartBox.IsChecked == true;
@@ -165,7 +165,7 @@ internal partial class IslandSettingsPage : UserControl
         model.StartMinimized = cur.StartMinimized; model.SuspendTabs = cur.SuspendTabs; model.LastPage = cur.LastPage;
         SettingsStore.Replace(model);
         Reload();
-        AppHost.Toast("Настройки острова сохранены");
+        AppHost.Toast(L.T("Настройки острова сохранены"));
     }
 
     void CloseClick(object s, RoutedEventArgs e) => Reload();

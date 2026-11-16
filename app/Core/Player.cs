@@ -55,7 +55,7 @@ sealed class Player : IDisposable
 
     IDeck Deck => decks[cur];
     IDeck Other => decks[1 - cur];
-    bool UseGraph => SettingsStore.Current.EqEnabled && !Perf.NoAudioEq && !graphFailed;
+    bool UseGraph => (SettingsStore.Current.EqEnabled || SettingsStore.Current.Normalize) && !Perf.NoAudioEq && !graphFailed;
 
     public ObservableCollection<Track> Queue { get; } = [];
     public Track? Current { get; private set; }
@@ -81,7 +81,7 @@ sealed class Player : IDisposable
     public bool Shuffle
     {
         get => SettingsStore.Current.Shuffle;
-        set { SettingsStore.Current.Shuffle = value; RebuildOrder(); SettingsStore.Save(); Changed?.Invoke(); }
+        set { SettingsStore.Current.Shuffle = value; RebuildOrder(); SettingsStore.Save(); Changed?.Invoke(); QueueChanged?.Invoke(); }
     }
 
     public bool RepeatOne
@@ -103,7 +103,7 @@ sealed class Player : IDisposable
     /// <summary>Эквалайзер включили/выключили: текущий трек продолжается на другом движке с той же позиции.</summary>
     public void EqChanged()
     {
-        if (SettingsStore.Current.EqEnabled) graphFailed = false; // даём графу новый шанс
+        if (SettingsStore.Current.EqEnabled || SettingsStore.Current.Normalize) graphFailed = false; // даём графу новый шанс
         if (UseGraph == EqActive) { EqGainsChanged(); return; }
         double pos = Position;
         bool was = IsPlaying;
@@ -156,7 +156,7 @@ sealed class Player : IDisposable
         Deck.Pause();
         Deck.Gain = Volume;
         SleepChanged?.Invoke();
-        Error?.Invoke("Таймер сна: музыка на паузе");
+        Error?.Invoke(L.T("Таймер сна: музыка на паузе"));
     }
 
     // ------------------------------------------------------------------
@@ -198,7 +198,7 @@ sealed class Player : IDisposable
         d.Failed += (s, msg) => ui.InvokeAsync(() =>
         {
             if (s != Deck) return;
-            Error?.Invoke("Не удалось воспроизвести: " + msg);
+            Error?.Invoke(L.T("Не удалось воспроизвести: ") + msg);
             Next();
         });
         d.StateChanged += s => ui.InvokeAsync(() =>
@@ -222,6 +222,7 @@ sealed class Player : IDisposable
         RebuildOrder(start);
         StopFade();
         _ = LoadAsync();
+        QueueChanged?.Invoke();
     }
 
     void RebuildOrder(Track? first = null)
@@ -264,7 +265,7 @@ sealed class Player : IDisposable
         if (deck is GraphDeck)
         {
             graphFailed = true;
-            Error?.Invoke("Эквалайзер не поддерживает этот поток — играю без него");
+            Error?.Invoke(L.T("Эквалайзер не поддерживает этот поток — играю без него"));
             SelectEngine();
             src = await CreateSourceAsync(t, ver);
             if (src == null || ver != loadVersion) return null;
@@ -279,6 +280,7 @@ sealed class Player : IDisposable
         int ver = ++loadVersion;
         var t = order[index];
         Current = t;
+        History.Add(t);
         if (EqActive) smtc.Enabled = true;
         Changed?.Invoke();
         try
@@ -293,7 +295,7 @@ sealed class Player : IDisposable
         catch (Exception ex)
         {
             Program.Log(ex);
-            Error?.Invoke("Ошибка воспроизведения");
+            Error?.Invoke(L.T("Ошибка воспроизведения"));
         }
     }
 
@@ -355,6 +357,7 @@ sealed class Player : IDisposable
             if (EqActive) smtc.Show(t);
             index = next;
             Current = t;
+            History.Add(t);
             fadeStart = DateTime.Now;
             fadeLen = Math.Max(1, Math.Min(cf, remaining));
             fading = true;
@@ -435,6 +438,61 @@ sealed class Player : IDisposable
         order.Remove(t);
         order.Insert(Math.Min(index + 1, order.Count), t);
         if (!Queue.Contains(t)) Queue.Add(t);
+        QueueChanged?.Invoke();
+    }
+
+    // ------------------------------------------------------------------ очередь
+
+    /// <summary>Что сыграет после текущего (с учётом перемешивания), не больше max.</summary>
+    public List<Track> Upcoming(int max = 300)
+    {
+        var r = new List<Track>();
+        if (order.Count == 0 || index < 0) return r;
+        for (int i = index + 1; i < order.Count && r.Count < max; i++) r.Add(order[i]);
+        return r;
+    }
+
+    public event Action? QueueChanged;
+
+    public void JumpTo(Track t)
+    {
+        int i = order.IndexOf(t);
+        if (i < 0) return;
+        StopFade();
+        index = i;
+        _ = LoadAsync();
+        QueueChanged?.Invoke();
+    }
+
+    public void RemoveFromQueue(Track t)
+    {
+        if (t == Current) return;
+        int i = order.IndexOf(t);
+        if (i < 0) return;
+        order.RemoveAt(i);
+        if (i < index) index--;
+        Queue.Remove(t);
+        QueueChanged?.Invoke();
+    }
+
+    /// <summary>Сдвинуть трек в очереди на delta позиций (в пределах «после текущего»).</summary>
+    public void MoveInQueue(Track t, int delta)
+    {
+        int i = order.IndexOf(t);
+        if (i <= index) return;
+        int j = Math.Clamp(i + delta, index + 1, order.Count - 1);
+        if (j == i) return;
+        order.RemoveAt(i);
+        order.Insert(j, t);
+        QueueChanged?.Invoke();
+    }
+
+    public void ClearUpcoming()
+    {
+        if (index < 0) return;
+        foreach (var t in order.Skip(index + 1).ToList()) Queue.Remove(t);
+        order.RemoveRange(index + 1, order.Count - index - 1);
+        QueueChanged?.Invoke();
     }
 
     /// <summary>«Не нравится»: запомнить и пропустить, если играет.</summary>

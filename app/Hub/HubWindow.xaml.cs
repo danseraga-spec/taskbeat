@@ -25,7 +25,7 @@ internal partial class HubWindow : Window
     {
         InitializeComponent();
 #pragma warning disable WPF0001 // Fluent-стили для стандартных контролов
-        ThemeMode = ThemeMode.Dark;
+        ThemeMode = Themes.IsLight ? ThemeMode.Light : ThemeMode.Dark;
 #pragma warning restore WPF0001
         Background = Brushes.Black;
         Volume.Value = AppHost.Player.Volume;
@@ -116,9 +116,10 @@ internal partial class HubWindow : Window
         PageHost.Content = page;
         PageTitle.Text = key switch
         {
-            "vk:my" => "Моя музыка", "vk:recs" => "Рекомендации", "vk:playlists" => "Плейлисты", "vk:search" => "Поиск",
-            "web:youtube" => "YouTube", "web:soundcloud" => "SoundCloud", "web:yandex" => "Яндекс Музыка",
-            "remote" => "Пульт", "island" => "Остров", "settings" => "Настройки", _ => "",
+            "vk:my" => L.T("Моя музыка"), "vk:recs" => L.T("Рекомендации"), "vk:playlists" => L.T("Плейлисты"), "vk:search" => L.T("Поиск"),
+            "vk:queue" => L.T("Очередь"), "vk:history" => L.T("История"), "local" => L.T("На компьютере"),
+            "web:youtube" => "YouTube", "web:soundcloud" => "SoundCloud", "web:yandex" => L.T("Яндекс Музыка"),
+            "remote" => L.T("Пульт"), "island" => L.T("Остров"), "settings" => L.T("Настройки"), _ => "",
         };
         if (page is WebPage w) w.Activate();
         if (page is VkPage v) v.OnShown();
@@ -132,6 +133,9 @@ internal partial class HubWindow : Window
         "vk:recs" => new VkPage(VkMode.Recs),
         "vk:playlists" => new VkPage(VkMode.Playlists),
         "vk:search" => new VkPage(VkMode.Search),
+        "vk:queue" => new VkPage(VkMode.Queue),
+        "vk:history" => new VkPage(VkMode.History),
+        "local" => new VkPage(VkMode.Local),
         "remote" => new RemotePage(),
         "island" => new IslandSettingsPage(),
         "settings" => new AppSettingsPage(),
@@ -157,19 +161,19 @@ internal partial class HubWindow : Window
             BarTitle.Text = m.Title;
             BarArtist.Text = m.Artist;
             Art.ImageSource = m.Art ?? (ours ? Cover(p.Current!) : null);
-            BarSource.Text = ours ? "VK Музыка" : SourceName(m.App);
+            BarSource.Text = ours ? L.T("VK Музыка") : SourceName(m.App);
         }
         else if (p.Current != null)
         {
             BarTitle.Text = p.Current.Title;
             BarArtist.Text = p.Current.Artist;
             Art.ImageSource = Cover(p.Current);
-            BarSource.Text = "VK Музыка";
+            BarSource.Text = L.T("VK Музыка");
         }
         else
         {
-            BarTitle.Text = "Ничего не играет";
-            BarArtist.Text = "Выберите трек или включите музыку где угодно";
+            BarTitle.Text = L.T("Ничего не играет");
+            BarArtist.Text = L.T("Выберите трек или включите музыку где угодно");
             Art.ImageSource = null;
             BarSource.Text = "";
         }
@@ -287,7 +291,7 @@ internal partial class HubWindow : Window
 
     void MoreClick(object s, RoutedEventArgs e)
     {
-        if (OurTrack() is not { } t) { ShowToast("Меню доступно для треков VK в Taskbeat"); return; }
+        if (OurTrack() is not { } t) { ShowToast(L.T("Меню доступно для треков VK в Taskbeat")); return; }
         var m = TrackMenu.Build(t);
         m.PlacementTarget = MoreBtn;
         m.Placement = PlacementMode.Top;
@@ -359,8 +363,8 @@ internal partial class HubWindow : Window
         UpdateCrossfadeText();
         UpdateSleepText();
         var st = SettingsStore.Current;
-        EqText.Text = !st.EqEnabled ? "Выключен"
-            : EqWindow.Presets.FirstOrDefault(p => p.key == st.EqPreset).name is { } n ? $"Включён · {n}" : "Включён · свой";
+        EqText.Text = !st.EqEnabled ? L.T("Выключен")
+            : EqWindow.Presets.FirstOrDefault(p => p.key == st.EqPreset).name is { } n ? $"Включён · {n}" : L.T("Включён · свой");
         settingsSync = false;
         PlaySettings.IsOpen = !PlaySettings.IsOpen;
     }
@@ -381,7 +385,7 @@ internal partial class HubWindow : Window
 
     void UpdateCrossfadeText() => CrossfadeText.Text = AppHost.Player.Crossfade > 0
         ? $"Треки перетекают друг в друга за {AppHost.Player.Crossfade} с"
-        : "Сглаживает переключение музыки";
+        : L.T("Сглаживает переключение музыки");
 
     EqWindow? eqWindow;
 
@@ -408,9 +412,9 @@ internal partial class HubWindow : Window
     void UpdateSleepText()
     {
         var p = AppHost.Player;
-        SleepText.Text = p.SleepAfterTrack ? "Остановится в конце трека"
+        SleepText.Text = p.SleepAfterTrack ? L.T("Остановится в конце трека")
             : p.SleepAt is { } at ? $"Остановится в {at:HH:mm}"
-            : "Выключен";
+            : L.T("Выключен");
         PlaySettingsBtn.Foreground = p.SleepAfterTrack || p.SleepAt != null || p.Crossfade > 0
             ? (Brush)FindResource("Accent") : (Brush)FindResource("Fg2");
     }

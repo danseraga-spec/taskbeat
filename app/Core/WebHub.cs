@@ -90,7 +90,7 @@ sealed class WebHub : IDisposable
 
     public WebSurface YouTube { get; } = new("youtube", "YouTube", "https://www.youtube.com/");
     public WebSurface SoundCloud { get; } = new("soundcloud", "SoundCloud", "https://soundcloud.com/discover");
-    public WebSurface Yandex { get; } = new("yandex", "Яндекс Музыка", "https://music.yandex.ru/");
+    public WebSurface Yandex { get; } = new("yandex", L.T("Яндекс Музыка"), "https://music.yandex.ru/");
     public IEnumerable<WebSurface> All => [YouTube, SoundCloud, Yandex];
 
     readonly DispatcherTimer sleeper = new(DispatcherPriority.Background) { Interval = TimeSpan.FromSeconds(30) };

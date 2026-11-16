@@ -56,8 +56,8 @@ public sealed class Reminder
         {
             string r = Repeat switch
             {
-                Repeat.Daily => " · каждый день", Repeat.Weekdays => " · по будням",
-                Repeat.Weekly => " · каждую неделю", _ => "",
+                Repeat.Daily => L.T(" · каждый день"), Repeat.Weekdays => L.T(" · по будням"),
+                Repeat.Weekly => L.T(" · каждую неделю"), _ => "",
             };
             return $"{When:dd.MM HH:mm}{r} — {Text}";
         }
@@ -115,7 +115,15 @@ public sealed class AppSettings
     public double IslandScale { get; set; }          // 0 — авто по разрешению монитора
     public bool AllMonitors { get; set; } = true;     // полоска на каждом мониторе с панелью задач
     public bool WinNotifications { get; set; } = true; // уведомления Windows в острове
-    public bool HideWinBanners { get; set; } = true;   // прятать стандартные всплывающие окна, пока работает Taskbeat
+    public bool HideWinBanners { get; set; } = true;
+    public bool IslandDownloads { get; set; } = true;   // загрузки браузеров и Taskbeat
+    public bool IslandVolume { get; set; }              // громкость (у Windows 11 своё окно над панелью)
+    public bool IslandBtBattery { get; set; } = true;   // заряд Bluetooth-наушников
+    public bool IslandLyrics { get; set; }              // строка синхронного текста в пилюле
+    public string Theme { get; set; } = "dark";         // dark / light / system (после перезапуска)
+    public string AccentColor { get; set; } = "#FFC24A";
+    public int StripThickness { get; set; } = 5;        // толщина полоски в покое, 3–8
+    public string StripColor { get; set; } = "cover";   // cover — цвет обложки, accent — цвет акцента   // прятать стандартные всплывающие окна, пока работает Taskbeat
 
     // события
     public bool TrackPeek { get; set; } = true;
@@ -147,12 +155,17 @@ public sealed class AppSettings
     /// <summary>Треки с отметкой «Не нравится» — пропускаются.</summary>
     public List<string> Disliked { get; set; } = [];
     public string DownloadDir { get; set; } = "";
+    public List<string> LocalFolders { get; set; } = [];   // плюс папка загрузок и «Музыка» — всегда
     /// <summary>classic — красота и плавность, game — минимум ресурсов.</summary>
     public string PerfMode { get; set; } = "classic";
     public bool Hotkeys { get; set; } = true;
 
     // эквалайзер: 10 полос, дБ
     public bool EqEnabled { get; set; }
+    public bool Normalize { get; set; }          // выравнивать громкость (лимитер в AudioGraph)
+    public string LastFmSession { get; set; } = "";   // зашифровано DPAPI
+    public string LastFmUser { get; set; } = "";
+    public bool DiscordPresence { get; set; }
     public double[] EqGains { get; set; } = new double[10];
     public string EqPreset { get; set; } = "flat";
 
@@ -161,6 +174,13 @@ public sealed class AppSettings
 
     /// <summary>Что отключает игровой режим.</summary>
     public GameOptions Game { get; set; } = new();
+
+    // обновления, установка, отчёты, язык
+    public bool AutoUpdateCheck { get; set; } = true;
+    public string SkippedVersion { get; set; } = "";
+    public bool InstallPrompted { get; set; }
+    public bool AskCrashReports { get; set; } = true;
+    public string Language { get; set; } = "auto";
 
     public AppSettings Clone() => JsonSerializer.Deserialize<AppSettings>(JsonSerializer.Serialize(this, SettingsStore.Json), SettingsStore.Json)!;
 }

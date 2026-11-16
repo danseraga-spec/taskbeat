@@ -18,7 +18,20 @@ static class TrackMenu
         var vk = AppHost.Vk;
         bool login = vk.LoggedIn;
 
-        m.Items.Add(Item("E8B1", "Микс по треку", async () =>
+        if (LocalLibrary.PathOf(t) is { } path)
+        {
+            m.Items.Add(Item("", L.T("Играть следующим"), () => { AppHost.Player.PlayNext(t); AppHost.Toast(L.T("Будет следующим")); return Task.CompletedTask; }));
+            m.Items.Add(Item("\uE838", L.T("Показать в папке"), () =>
+            {
+                try { System.Diagnostics.Process.Start("explorer.exe", "/select,\"" + path + "\""); } catch { }
+                return Task.CompletedTask;
+            }));
+            m.Items.Add(Item("", L.T("Перейти к исполнителю"), () => { AppHost.Hub?.OpenSearch(t.Artist); return Task.CompletedTask; }, login && t.Artist.Length > 0));
+            m.Items.Add(Item("", L.T("Текст песни"), () => { AppHost.Hub?.ShowLyrics(t); return Task.CompletedTask; }));
+            return m;
+        }
+
+        m.Items.Add(Item("E8B1", L.T("Микс по треку"), async () =>
         {
             try
             {
@@ -30,24 +43,24 @@ static class TrackMenu
             }
             catch (Exception ex) { Fail(ex); }
         }, login));
-        m.Items.Add(Item("E893", "Играть следующим", () => { AppHost.Player.PlayNext(t); AppHost.Toast("Будет следующим"); return Task.CompletedTask; }, t.Playable));
+        m.Items.Add(Item("E893", L.T("Играть следующим"), () => { AppHost.Player.PlayNext(t); AppHost.Toast(L.T("Будет следующим")); return Task.CompletedTask; }, t.Playable));
         m.Items.Add(new Separator());
 
         if (vk.IsMine(t))
-            m.Items.Add(Item("E74D", "Удалить из моих треков", async () =>
+            m.Items.Add(Item("E74D", L.T("Удалить из моих треков"), async () =>
             {
-                try { await vk.DeleteAsync(t); AppHost.Toast("Удалено из моих треков"); removedFromList?.Invoke(); }
+                try { await vk.DeleteAsync(t); AppHost.Toast(L.T("Удалено из моих треков")); removedFromList?.Invoke(); }
                 catch (Exception ex) { Fail(ex); }
             }, login, danger: true));
         else
-            m.Items.Add(Item("E710", "Добавить в мои треки", async () =>
+            m.Items.Add(Item("E710", L.T("Добавить в мои треки"), async () =>
             {
-                try { await vk.AddAsync(t); AppHost.Toast("Добавлено в мои треки"); }
+                try { await vk.AddAsync(t); AppHost.Toast(L.T("Добавлено в мои треки")); }
                 catch (Exception ex) { Fail(ex); }
             }, login));
 
-        var toList = Item("E90B", "Добавить в плейлист", null, login);
-        toList.Items.Add(new MenuItem { Header = "Загрузка…", IsEnabled = false });
+        var toList = Item("E90B", L.T("Добавить в плейлист"), null, login);
+        toList.Items.Add(new MenuItem { Header = L.T("Загрузка…"), IsEnabled = false });
         bool filled = false;
         toList.SubmenuOpened += async (_, _) =>
         {
@@ -57,7 +70,7 @@ static class TrackMenu
             {
                 var lists = (await vk.PlaylistsAsync()).Where(p => p.OwnerId == vk.UserId).ToList();
                 toList.Items.Clear();
-                if (lists.Count == 0) toList.Items.Add(new MenuItem { Header = "Нет своих плейлистов", IsEnabled = false });
+                if (lists.Count == 0) toList.Items.Add(new MenuItem { Header = L.T("Нет своих плейлистов"), IsEnabled = false });
                 foreach (var p in lists)
                 {
                     var pi = new MenuItem { Header = p.Title };
@@ -69,42 +82,44 @@ static class TrackMenu
                     toList.Items.Add(pi);
                 }
             }
-            catch (Exception ex) { filled = false; toList.Items.Clear(); toList.Items.Add(new MenuItem { Header = "Не удалось загрузить", IsEnabled = false }); Fail(ex); }
+            catch (Exception ex) { filled = false; toList.Items.Clear(); toList.Items.Add(new MenuItem { Header = L.T("Не удалось загрузить"), IsEnabled = false }); Fail(ex); }
         };
         m.Items.Add(toList);
 
-        m.Items.Add(Item("E896", "Скачать", async () =>
+        m.Items.Add(Item("E896", L.T("Скачать"), async () =>
         {
             AppHost.Toast($"Скачиваю «{t.Title}»…");
+            var progress = Live.TrackDownload(t.Title);
             try
             {
-                var path = await Task.Run(() => Downloader.DownloadAsync(t));
-                AppHost.Toast("Сохранено в " + System.IO.Path.GetDirectoryName(path));
+                var path = await Task.Run(() => Downloader.DownloadAsync(t, progress));
+                progress.Report(1);
+                AppHost.Toast(L.T("Сохранено в ") + System.IO.Path.GetDirectoryName(path));
             }
-            catch (Exception ex) { Program.Log(ex); AppHost.Toast("Не удалось скачать трек"); }
+            catch (Exception ex) { Live.DownloadFailed(progress); Program.Log(ex); AppHost.Toast("Не удалось скачать трек"); }
         }, t.Playable));
-        m.Items.Add(Item("E72D", "Поделиться", () =>
+        m.Items.Add(Item("E72D", L.T("Поделиться"), () =>
         {
             try { Clipboard.SetText($"https://vk.com/audio{t.Id}"); AppHost.Toast("Ссылка скопирована"); } catch { }
             return Task.CompletedTask;
         }));
-        m.Items.Add(Item("E8E0", "Не нравится", () =>
+        m.Items.Add(Item("E8E0", L.T("Не нравится"), () =>
         {
             AppHost.Player.Dislike(t);
-            AppHost.Toast("Больше не будет играть");
+            AppHost.Toast(L.T("Больше не будет играть"));
             removedFromList?.Invoke();
             return Task.CompletedTask;
         }));
         m.Items.Add(new Separator());
 
-        m.Items.Add(Item("E77B", "Перейти к исполнителю", () => { AppHost.Hub?.OpenSearch(t.Artist); return Task.CompletedTask; }, login));
+        m.Items.Add(Item("E77B", L.T("Перейти к исполнителю"), () => { AppHost.Hub?.OpenSearch(t.Artist); return Task.CompletedTask; }, login));
         var album = VkApi.AlbumOf(t);
-        m.Items.Add(Item("E93C", "Перейти к альбому", () => { if (album != null) AppHost.Hub?.OpenPlaylist(album); return Task.CompletedTask; }, login && album != null));
-        m.Items.Add(Item("E8A5", "Текст песни", () => { AppHost.Hub?.ShowLyrics(t); return Task.CompletedTask; }));
+        m.Items.Add(Item("E93C", L.T("Перейти к альбому"), () => { if (album != null) AppHost.Hub?.OpenPlaylist(album); return Task.CompletedTask; }, login && album != null));
+        m.Items.Add(Item("E8A5", L.T("Текст песни"), () => { AppHost.Hub?.ShowLyrics(t); return Task.CompletedTask; }));
         return m;
     }
 
-    static MenuItem Item(string glyph, string text, Func<Task>? click, bool enabled = true, bool danger = false)
+    public static MenuItem Item(string glyph, string text, Func<Task>? click, bool enabled = true, bool danger = false)
     {
         if (glyph.Length == 0) glyph = Glyph(text);
         // значок кладём прямо в заголовок: колонка Icon в шаблоне меню Fluent подменяет шрифт,
@@ -122,23 +137,23 @@ static class TrackMenu
 
     static string Glyph(string text) => text switch
     {
-        _ when text.StartsWith("Микс") => "",
-        _ when text.StartsWith("Играть") => "",
-        _ when text.StartsWith("Удалить") => "",
-        _ when text.StartsWith("Добавить в мои") => "",
-        _ when text.StartsWith("Добавить в плейлист") => "",
-        _ when text.StartsWith("Скачать") => "",
-        _ when text.StartsWith("Поделиться") => "",
-        _ when text.StartsWith("Не нравится") => "",
-        _ when text.StartsWith("Перейти к исп") => "",
-        _ when text.StartsWith("Перейти к альб") => "",
-        _ when text.StartsWith("Текст") => "",
+        _ when text.StartsWith(L.T("Микс")) => "",
+        _ when text.StartsWith(L.T("Играть")) => "",
+        _ when text.StartsWith(L.T("Удалить")) => "",
+        _ when text.StartsWith(L.T("Добавить в мои")) => "",
+        _ when text.StartsWith(L.T("Добавить в плейлист")) => "",
+        _ when text.StartsWith(L.T("Скачать")) => "",
+        _ when text.StartsWith(L.T("Поделиться")) => "",
+        _ when text.StartsWith(L.T("Не нравится")) => "",
+        _ when text.StartsWith(L.T("Перейти к исп")) => "",
+        _ when text.StartsWith(L.T("Перейти к альб")) => "",
+        _ when text.StartsWith(L.T("Текст")) => "",
         _ => "",
     };
 
     static void Fail(Exception ex)
     {
         if (ex is not VkException) Program.Log(ex);
-        AppHost.Toast(ex is VkException ? ex.Message : "Нет связи с VK");
+        AppHost.Toast(ex is VkException ? ex.Message : L.T("Нет связи с VK"));
     }
 }
