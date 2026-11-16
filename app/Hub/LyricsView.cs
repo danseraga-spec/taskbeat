@@ -26,6 +26,8 @@ sealed class LyricsView : UserControl
     readonly StackPanel lines = new();
     readonly TranslateTransform shift = new();
     readonly Grid viewport = new() { ClipToBounds = true, Background = Brushes.Transparent };
+    // Canvas не ограничивает высоту строк: StackPanel прямо в Grid обрезался по высоте окна ещё до сдвига
+    readonly Canvas strip = new();
     readonly TextBlock status = new() { FontSize = 15, Foreground = new SolidColorBrush(Color.FromArgb(0xB0, 255, 255, 255)), HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, TextAlignment = TextAlignment.Center, TextWrapping = TextWrapping.Wrap, MaxWidth = 420 };
     readonly TextBlock sourceInfo = new() { FontSize = 11.5, Foreground = new SolidColorBrush(Color.FromArgb(0x80, 255, 255, 255)) };
     readonly Dictionary<string, RadioButton> sources = [];
@@ -87,7 +89,7 @@ sealed class LyricsView : UserControl
         closeBtn.Click += (_, _) => close();
         pills.Children.Add(closeBtn);
 
-        var head = new DockPanel { Margin = new Thickness(32, 10, 26, 0) };
+        var head = new DockPanel { Margin = new Thickness(32, 52, 26, 0) };
         DockPanel.SetDock(pills, Dock.Right);
         head.Children.Add(pills);
         head.Children.Add(cover);
@@ -95,7 +97,8 @@ sealed class LyricsView : UserControl
 
         lines.RenderTransform = shift;
         lines.VerticalAlignment = VerticalAlignment.Top;
-        viewport.Children.Add(lines);
+        strip.Children.Add(lines);
+        viewport.Children.Add(strip);
         viewport.Children.Add(status);
         // мягкое затухание текста сверху и снизу
         var fade = new LinearGradientBrush { StartPoint = new Point(0, 0), EndPoint = new Point(0, 1) };
@@ -114,7 +117,7 @@ sealed class LyricsView : UserControl
             shift.Y = y;
             e.Handled = true;
         };
-        viewport.SizeChanged += (_, _) => { active = -2; Sync(); };
+        viewport.SizeChanged += (_, _) => { lines.Width = viewport.ActualWidth; active = -2; Sync(); };
 
         var content = new DockPanel();
         DockPanel.SetDock(head, Dock.Top);

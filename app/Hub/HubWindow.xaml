@@ -70,13 +70,13 @@
                 <RowDefinition/>
             </Grid.RowDefinitions>
             <TextBlock x:Name="PageTitle" FontSize="24" FontWeight="SemiBold" VerticalAlignment="Bottom" Margin="32,0,0,4"/>
+            <ContentControl x:Name="PageHost" Grid.Row="1" Focusable="False"/>
+            <ContentControl x:Name="LyricsHost" Grid.RowSpan="2" Focusable="False" Visibility="Collapsed"/>
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Top">
                 <Button Style="{StaticResource Caption}" Content="&#xE921;" Click="MinClick" WindowChrome.IsHitTestVisibleInChrome="True"/>
                 <Button Style="{StaticResource Caption}" x:Name="MaxBtn" Content="&#xE922;" Click="MaxClick" WindowChrome.IsHitTestVisibleInChrome="True"/>
                 <Button Style="{StaticResource CaptionClose}" Content="&#xE8BB;" Click="CloseClick" WindowChrome.IsHitTestVisibleInChrome="True"/>
             </StackPanel>
-            <ContentControl x:Name="PageHost" Grid.Row="1" Focusable="False"/>
-            <ContentControl x:Name="LyricsHost" Grid.RowSpan="2" Focusable="False" Visibility="Collapsed" Margin="0,44,0,0"/>
         </Grid>
 
         <!-- настройки воспроизведения -->
