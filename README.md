@@ -86,12 +86,6 @@ build.cmd
 | `app/Island` | остров на панели задач, мониторы, уведомления |
 | `relay` | посредник Cloudflare Worker: отзывы → Telegram |
 
-### Last.fm и Discord
-
-Ключи этих сервисов в исходниках пустые, и без них функции просто выключены. Чтобы включить:
-- Last.fm — создайте ключ на [last.fm/api/account/create](https://www.last.fm/api/account/create) и впишите `ApiKey` и `Secret` в `app/Core/Scrobblers.cs`.
-- Discord — создайте приложение на [discord.com/developers](https://discord.com/developers/applications), загрузите в Rich Presence → Art Assets картинку с именем `taskbeat` и впишите Application ID в `AppId` там же.
-
 ## Сторонние компоненты
 
 - [Microsoft Edge WebView2](https://developer.microsoft.com/microsoft-edge/webview2/) — лицензия Microsoft
