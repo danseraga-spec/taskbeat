@@ -19,7 +19,7 @@ namespace CoolPlayer;
 /// </summary>
 sealed class IslandWindow : Window
 {
-    const double TallDip = 196;           // раскрытая карточка над панелью + перелёт пружины
+    const double TallDip = 228;           // раскрытая карточка над панелью + перелёт пружины
     bool tall = true;
     const int WM_APPBAR = WM_APP + 1, WM_TRAY = WM_APP + 2;
 
@@ -448,53 +448,8 @@ sealed class IslandWindow : Window
         Shell_NotifyIconW(0, ref d); // NIM_ADD
     }
 
-    public void ShowMenu()
-    {
-        IntPtr m = CreatePopupMenu();
-        AppendMenuW(m, 0, 6, L.T("Открыть Taskbeat"));
-        if (AppHost.Web.CanPip) AppendMenuW(m, 0, 7, L.T("Видео в картинку-в-картинке"));
-        AppendMenuW(m, 0x800, 0, null); // MF_SEPARATOR
-        AppendMenuW(m, 0, 3, L.T("Настройки острова…"));
-        AppendMenuW(m, 0, 4, L.T("Новое напоминание…"));
-        IntPtr tm = CreatePopupMenu();
-        if (Live.TimerRunning) AppendMenuW(tm, 0, 30, L.T("Остановить таймер"));
-        else
-        {
-            foreach (int min in new[] { 1, 3, 5, 10, 15, 20, 30, 45, 60 }) AppendMenuW(tm, 0, (nuint)(100 + min), L.F("{0} мин", min));
-            AppendMenuW(tm, 0x800, 0, null);
-            AppendMenuW(tm, 0, 31, L.T("Помодоро 25 + 5"));
-        }
-        AppendMenuW(tm, 0x800, 0, null);
-        AppendMenuW(tm, Live.StopwatchRunning ? 0x8u : 0u, 32, Live.StopwatchRunning ? L.T("Остановить секундомер") : L.T("Секундомер"));
-        AppendMenuW(m, 0x10, (nuint)(nint)tm, L.T("Таймер")); // MF_POPUP
-        AppendMenuW(m, 0, 8, L.T("Отзыв или баг…"));
-        AppendMenuW(m, 0x800, 0, null);
-        AppendMenuW(m, SettingsStore.Current.CollapseToStrip ? 0x8u : 0u, 5, L.T("Уходить в полоску в покое"));
-        AppendMenuW(m, Autostart.Enabled ? 0x8u : 0u, 1, L.T("Запускать вместе с Windows")); // MF_CHECKED
-        AppendMenuW(m, 0x800, 0, null);
-        AppendMenuW(m, 0, 2, L.T("Выход"));
-        GetCursorPos(out var pt);
-        SetForegroundWindow(hwnd);
-        int cmd = TrackPopupMenuEx(m, 0x100 | 0x2 | 0x20, pt.X, pt.Y, hwnd, IntPtr.Zero); // RETURNCMD|RIGHTBUTTON|BOTTOMALIGN
-        PostMessageW(hwnd, 0, IntPtr.Zero, IntPtr.Zero);
-        DestroyMenu(m);
-        if (cmd == 1) Autostart.Enabled = !Autostart.Enabled;
-        else if (cmd == 2) AppHost.Exit();
-        else if (cmd == 6) AppHost.ShowHub();
-        else if (cmd == 7) AppHost.Web.EnterPip();
-        else if (cmd == 8) FeedbackWindow.Open();
-        else if (cmd == 30) Live.StopTimer();
-        else if (cmd == 31) Live.StartPomodoro();
-        else if (cmd == 32) Live.ToggleStopwatch();
-        else if (cmd > 100 && cmd <= 160) Live.StartTimer(TimeSpan.FromMinutes(cmd - 100));
-        else if (cmd == 3) OpenSettings();
-        else if (cmd == 4) OpenSettings(2);
-        else if (cmd == 5)
-        {
-            SettingsStore.Current.CollapseToStrip = !SettingsStore.Current.CollapseToStrip;
-            SettingsStore.Touch();
-        }
-    }
+    public void ShowMenu() => IslandMenu.Open(this);
+    public void SetMenuOpen(bool on) { foreach (var w in (Root ?? this).All) w.view.SetMenuOpen(on); }
 
     public void Cleanup()
     {

@@ -88,6 +88,15 @@ static class TrackMenu
 
         m.Items.Add(Item("E896", L.T("Скачать"), async () =>
         {
+            // куда сохранить: выбор папки, по умолчанию — прошлая
+            var dlg = new Microsoft.Win32.OpenFolderDialog { Title = L.T("Куда сохранить трек"), InitialDirectory = Downloader.Folder };
+            try { System.IO.Directory.CreateDirectory(Downloader.Folder); } catch { }
+            if ((AppHost.Hub is { IsVisible: true } owner ? dlg.ShowDialog(owner) : dlg.ShowDialog()) != true) return;
+            if (!string.Equals(dlg.FolderName, Downloader.Folder, StringComparison.OrdinalIgnoreCase))
+            {
+                SettingsStore.Current.DownloadDir = dlg.FolderName;
+                SettingsStore.Save();
+            }
             AppHost.Toast($"Скачиваю «{t.Title}»…");
             var progress = Live.TrackDownload(t.Title);
             try
@@ -96,7 +105,7 @@ static class TrackMenu
                 progress.Report(1);
                 AppHost.Toast(L.T("Сохранено в ") + System.IO.Path.GetDirectoryName(path));
             }
-            catch (Exception ex) { Live.DownloadFailed(progress); Program.Log(ex); AppHost.Toast("Не удалось скачать трек"); }
+            catch (Exception ex) { Live.DownloadFailed(progress); Program.Log(ex); AppHost.Toast(L.T("Не удалось скачать трек")); }
         }, t.Playable));
         m.Items.Add(Item("E72D", L.T("Поделиться"), () =>
         {
@@ -122,6 +131,8 @@ static class TrackMenu
     public static MenuItem Item(string glyph, string text, Func<Task>? click, bool enabled = true, bool danger = false)
     {
         if (glyph.Length == 0) glyph = Glyph(text);
+        // код значка в виде «E8B1» → сам символ (иначе шрифт значков рисует буквы квадратами)
+        if (glyph.Length == 4 && int.TryParse(glyph, System.Globalization.NumberStyles.HexNumber, null, out int code)) glyph = ((char)code).ToString();
         // значок кладём прямо в заголовок: колонка Icon в шаблоне меню Fluent подменяет шрифт,
         // и вместо значков выходили квадраты
         var icon = new TextBlock { Text = glyph, FontSize = 14, Width = 22, Margin = new Thickness(0, 0, 10, 0), VerticalAlignment = VerticalAlignment.Center };

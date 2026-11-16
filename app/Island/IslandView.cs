@@ -70,6 +70,8 @@ sealed class IslandView : FrameworkElement
     readonly Dictionary<string, Rect> buttons = [];
     readonly Queue<Reminder> alerts = new();
     Rect seekRect = Rect.Empty;
+    Rect volRect = Rect.Empty;
+    bool draggingVol;
 
     double W = 1, H = 1, lastFrame, ppd = 1, lastClip = -10;
     public double TaskbarHeight { get; set; } = 48;
@@ -189,7 +191,7 @@ sealed class IslandView : FrameworkElement
             Mode.Activity => activity?.Kind switch { "track" => (360, 32, mid), "notif" => (400, 46, mid), "volume" => (300, 32, mid), _ => (286, 32, mid) },
             Mode.Live => (300, 32, mid),
             Mode.Info => (InfoWidth(), 32, mid),
-            Mode.ExpMedia => (424, 160, 6 + 80),
+            Mode.ExpMedia => (424, 190, 6 + 95),
             Mode.ExpIdle => M.Has ? (384, 164, 6 + 82) : (384, 118, 6 + 59),
             Mode.Alert => (384, 128, 6 + 64),
             _ => (yielded ? 0 : StripWidth, StripH, TaskbarHeight - StripH / 2),
@@ -349,7 +351,7 @@ sealed class IslandView : FrameworkElement
 
     void SetExpanded(bool on)
     {
-        if (on && (suppressed || alert != null)) return;
+        if (on && (suppressed || menuOpen || alert != null)) return;
         if (expanded == on) return;
         expanded = on;
         Retarget();
@@ -397,6 +399,16 @@ sealed class IslandView : FrameworkElement
 
     public void Notify(string left, string right, Color color, double seconds = 2) =>
         ShowActivity(new ActivityInfo("note", left, right, color), seconds);
+
+    bool menuOpen;
+
+    /// <summary>Открыто меню острова — карточка сворачивается, чтобы не закрывать его.</summary>
+    public void SetMenuOpen(bool on)
+    {
+        menuOpen = on;
+        hoverTimer.Stop();
+        if (on && expanded) { expanded = false; Retarget(); }
+    }
 
     public void SetSuppressed(bool s)
     {
@@ -501,8 +513,27 @@ sealed class IslandView : FrameworkElement
         Retarget();
     }
 
+    void SetVolFrom(Point p)
+    {
+        if (volRect.IsEmpty) return;
+        double inner = volRect.Width - 12;
+        Live.SystemVolume = (float)Math.Clamp((p.X - volRect.X - 6) / inner, 0, 1);
+        InvalidateVisual();
+    }
+
+    /// <summary>Колесо мыши над островом — громкость Windows (по 2%).</summary>
+    protected override void OnMouseWheel(MouseWheelEventArgs e)
+    {
+        e.Handled = true;
+        float v = Live.SystemVolume + (e.Delta > 0 ? 0.02f : -0.02f) * Math.Max(1, Math.Abs(e.Delta) / 120);
+        Live.SystemVolume = Math.Clamp(v, 0, 1);
+        if (expanded) InvalidateVisual();
+        else ShowActivity(new ActivityInfo("volume", global::CoolPlayer.L.T("Громкость"), $"{Math.Round(Math.Clamp(v, 0, 1) * 100)}", Colors.White) { Value = Math.Clamp(v, 0, 1) }, 1.4);
+    }
+
     protected override void OnMouseMove(MouseEventArgs e)
     {
+        if (draggingVol) { SetVolFrom(Pos(e)); return; }
         leaveTimer.Stop();
         if (expanded || hoverTimer.IsEnabled || suppressed || alert != null) return;
         bool onStrip = sh.Value < 8;
@@ -512,6 +543,7 @@ sealed class IslandView : FrameworkElement
 
     protected override void OnMouseLeave(MouseEventArgs e)
     {
+        if (draggingVol) return;
         hoverTimer.Stop();
         if (expanded) leaveTimer.Start();
     }
@@ -519,6 +551,13 @@ sealed class IslandView : FrameworkElement
     protected override void OnMouseLeftButtonUp(MouseButtonEventArgs e)
     {
         var p = Pos(e);
+        if (draggingVol)
+        {
+            draggingVol = false;
+            ReleaseMouseCapture();
+            SetVolFrom(p);
+            return;
+        }
         foreach (var (name, r) in buttons)
         {
             if (!r.Contains(p)) continue;
@@ -529,6 +568,7 @@ sealed class IslandView : FrameworkElement
                 case "settings": host.OpenSettings(); break;
                 case "pip": if (AppHost.Web.InPip) AppHost.Web.ExitPip(true); else AppHost.Web.EnterPip(); break;
                 case "hub": AppHost.ShowHub(); break;
+                case "mute": Live.ToggleMute(); InvalidateVisual(); break;
                 default: media.Command(name); break;
             }
             return;
@@ -547,8 +587,17 @@ sealed class IslandView : FrameworkElement
     // двойной клик по раскрытому острову (мимо кнопок и полосы перемотки) — открыть сам плеер
     protected override void OnMouseLeftButtonDown(MouseButtonEventArgs e)
     {
+        if (expanded && alert == null && e.ClickCount == 1 && volRect.Contains(Pos(e)))
+        {
+            draggingVol = true;
+            CaptureMouse();
+            SetVolFrom(Pos(e));
+            e.Handled = true;
+            return;
+        }
         if (e.ClickCount != 2 || !expanded || alert != null) return;
         var p = Pos(e);
+        if (volRect.Contains(p)) return;
         if (seekRect.Contains(p) || buttons.Values.Any(r => r.Contains(p))) return;
         e.Handled = true;
         AppHost.ShowHub();
@@ -575,6 +624,7 @@ sealed class IslandView : FrameworkElement
         ppd = VisualTreeHelper.GetDpi(this).PixelsPerDip * Scale;
         buttons.Clear();
         seekRect = Rect.Empty;
+        volRect = Rect.Empty;
 
         // невидимая кромка по верху панели — ловит наведение
         dc.DrawRectangle(HitBrush, null, new Rect(0, TbTop, W, 5));
@@ -854,6 +904,20 @@ sealed class IslandView : FrameworkElement
         bool pip = AppHost.Web.CanPip || AppHost.Web.InPip;
         if (pip) DrawPipIcon(dc, R - pad - 14, cy, AppHost.Web.InPip);
 
+        // громкость Windows: значок (клик — без звука), полоса (клик/перетаскивание), проценты; колесо — где угодно на острове
+        double vy = cy + 34;
+        float vol = Live.SystemVolume;
+        bool muted = Live.SystemMuted;
+        double v = muted ? 0 : vol;
+        string vg = v <= 0 ? "\uE74F" : v < 0.34 ? "\uE993" : v < 0.67 ? "\uE994" : "\uE995";
+        DrawGlyph(dc, vg, 14, muted ? Freeze(new SolidColorBrush(Color.FromRgb(255, 105, 97))) : Gray, new Point(L + pad + 9, vy));
+        double vx = L + pad + 30, vw = R - L - 2 * pad - 30 - 40;
+        dc.DrawRoundedRectangle(Track, null, new Rect(vx, vy - 2, vw, 4), 2, 2);
+        dc.DrawRoundedRectangle(accentBrush, null, new Rect(vx, vy - 2, Math.Max(4, vw * v), 4), 2, 2);
+        dc.DrawEllipse(White, null, new Point(vx + vw * v, vy), draggingVol ? 7 : 5.5, draggingVol ? 7 : 5.5);
+        var pct = Text($"{Math.Round(v * 100)}", 11, FontWeights.Medium, Gray);
+        dc.DrawText(pct, new Point(R - pad - pct.Width, vy - pct.Height / 2));
+
         if (alpha > 0.9)
         {
             buttons["hub"] = art;
@@ -862,6 +926,8 @@ sealed class IslandView : FrameworkElement
             buttons["toggle"] = new Rect(cx - 24, cy - 20, 48, 40);
             buttons["next"] = new Rect(cx + 68 - 24, cy - 20, 48, 40);
             if (dur > 0) seekRect = new Rect(bx, y - 9, bw, 18);
+            volRect = new Rect(vx - 6, vy - 10, vw + 12, 20);
+            buttons["mute"] = new Rect(L + pad - 4, vy - 12, 26, 24);
         }
     }
 

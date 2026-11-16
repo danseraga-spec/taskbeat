@@ -262,8 +262,53 @@ static class Live
 
     // ------------------------------------------------------------------ громкость
 
+    /// <summary>Громкость Windows (0..1) для регулятора на острове.</summary>
+    public static float SystemVolume
+    {
+        get => VolumeWatch.Get();
+        set => VolumeWatch.Set(value);
+    }
+    public static bool SystemMuted => VolumeWatch.Muted();
+    public static void ToggleMute() => VolumeWatch.ToggleMute();
+
     static class VolumeWatch
     {
+        public static float Get()
+        {
+            try { if (ep == null) Start(); ep?.GetMasterVolumeLevelScalar(out last); } catch { ep = null; }
+            return Math.Clamp(last, 0, 1);
+        }
+
+        public static bool Muted()
+        {
+            try { if (ep?.GetMute(out bool m) == 0) return m; } catch { }
+            return false;
+        }
+
+        public static void Set(float v)
+        {
+            v = Math.Clamp(v, 0, 1);
+            var ctx = Guid.Empty;
+            for (int attempt = 0; attempt < 2; attempt++)
+            {
+                try
+                {
+                    if (ep == null) Start();
+                    if (ep == null) return;
+                    if (Muted() && v > 0) ep.SetMute(false, ref ctx);
+                    ep.SetMasterVolumeLevelScalar(v, ref ctx);
+                    return;
+                }
+                catch { ep = null; } // устройство вывода сменилось — берём новое
+            }
+        }
+
+        public static void ToggleMute()
+        {
+            var ctx = Guid.Empty;
+            try { ep?.SetMute(!Muted(), ref ctx); } catch { ep = null; }
+        }
+
         static IAudioEndpointVolume? ep;
         static Callback? cb;
         static float last = -1;
@@ -277,6 +322,7 @@ static class Live
                 Marshal.ThrowExceptionForHR(en.GetDefaultAudioEndpoint(0, 1, out var dev)); // eRender, eMultimedia
                 var iid = typeof(IAudioEndpointVolume).GUID;
                 Marshal.ThrowExceptionForHR(dev.Activate(ref iid, 23, IntPtr.Zero, out var o)); // CLSCTX_ALL
+                if (ep != null && cb != null) try { ep.UnregisterControlChangeNotify(cb); } catch { }
                 ep = (IAudioEndpointVolume)o;
                 ep.GetMasterVolumeLevelScalar(out last);
                 ep.GetMute(out lastMute);
