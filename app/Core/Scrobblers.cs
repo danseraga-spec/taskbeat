@@ -1,6 +1,7 @@
 using System.IO;
 using System.IO.Pipes;
 using System.Net.Http;
+using System.Reflection;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -9,15 +10,32 @@ using Windows.Security.Cryptography.DataProtection;
 
 namespace CoolPlayer;
 
+/// <summary>Ключи сторонних сервисов: вшиваются при сборке из app/keys.props (он не хранится в git).</summary>
+static class AppKeys
+{
+    static readonly Dictionary<string, string> map = typeof(AppKeys).Assembly
+        .GetCustomAttributes<AssemblyMetadataAttribute>()
+        .GroupBy(a => a.Key)
+        .ToDictionary(g => g.Key, g => g.First().Value?.Trim() ?? "");
+
+    public static string Get(string key) => map.GetValueOrDefault(key) ?? "";
+}
+
+sealed class LastFmException(int code, string message) : Exception(message)
+{
+    public int Code { get; } = code;
+}
+
 /// <summary>
 /// Last.fm: «сейчас играет» и скробблинг (трек дослушан до половины или 4 минут).
-/// Ключ приложения выдаёт last.fm/api/account/create — впишите его в ApiKey/Secret перед сборкой.
+/// Ключ приложения (last.fm/api/account/create) берётся из keys.props при сборке.
+/// Скробблы, не отправленные из-за сети, копятся в scrobbles.json и уходят позже.
 /// </summary>
 static class LastFm
 {
-    // TODO: ключ и секрет приложения Last.fm (https://www.last.fm/api/account/create)
-    const string ApiKey = "";
-    const string Secret = "";
+    static readonly string ApiKey = AppKeys.Get("LastFmKey");
+    static readonly string Secret = AppKeys.Get("LastFmSecret");
+    static readonly string QueueFile = Path.Combine(Paths.DataDir, "scrobbles.json");
     const string Api = "https://ws.audioscrobbler.com/2.0/";
 
     public static bool Configured => ApiKey.Length > 0 && Secret.Length > 0;
@@ -41,6 +59,7 @@ static class LastFm
         var t = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromSeconds(5) };
         t.Tick += (_, _) => Tick();
         t.Start();
+        if (Connected) _ = SafeAsync(FlushQueueAsync);
     }
 
     // ------------------------------------------------------------------ вход
@@ -58,24 +77,38 @@ static class LastFm
         catch (Exception ex) { return ex.Message; }
     }
 
-    /// <summary>Шаг 2: после «Разрешить» на сайте — получить сессию.</summary>
-    public static async Task<string?> FinishConnectAsync()
+    /// <summary>
+    /// Шаг 2: ждём, пока на сайте нажмут «Разрешить» (опрос раз в 3 секунды, до 5 минут).
+    /// null — подключено, "" — отменено, иначе текст ошибки.
+    /// </summary>
+    public static async Task<string?> WaitConnectAsync(CancellationToken ct)
     {
-        if (pendingToken == null) return L.T("Сначала нажмите «Подключить»");
-        try
+        var until = DateTime.UtcNow.AddMinutes(5);
+        while (DateTime.UtcNow < until)
         {
-            var r = await Call("auth.getSession", new() { ["token"] = pendingToken }, signed: true, post: false);
-            var s = r.GetProperty("session");
-            string key = s.GetProperty("key").GetString() ?? "";
-            SettingsStore.Current.LastFmUser = s.GetProperty("name").GetString() ?? "";
-            SettingsStore.Current.LastFmSession = await ProtectAsync(key);
-            SettingsStore.Save();
-            session = key;
-            pendingToken = null;
-            Changed?.Invoke();
-            return null;
+            try { await Task.Delay(3000, ct); }
+            catch (OperationCanceledException) { pendingToken = null; return ""; }
+            if (pendingToken == null) return L.T("Сначала нажмите «Подключить»");
+            try
+            {
+                var r = await Call("auth.getSession", new() { ["token"] = pendingToken }, signed: true, post: false);
+                var s = r.GetProperty("session");
+                string key = s.GetProperty("key").GetString() ?? "";
+                SettingsStore.Current.LastFmUser = s.GetProperty("name").GetString() ?? "";
+                SettingsStore.Current.LastFmSession = await ProtectAsync(key);
+                SettingsStore.Save();
+                session = key;
+                pendingToken = null;
+                Changed?.Invoke();
+                _ = SafeAsync(FlushQueueAsync);
+                return null;
+            }
+            catch (LastFmException ex) when (ex.Code == 14) { } // ещё не разрешили
+            catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException) { } // сеть моргнула
+            catch (Exception ex) { pendingToken = null; return ex.Message; }
         }
-        catch (Exception ex) { return ex.Message; }
+        pendingToken = null;
+        return L.T("Время вышло. Нажмите «Подключить» ещё раз.");
     }
 
     public static void Disconnect()
@@ -119,11 +152,21 @@ static class LastFm
 
     static Task NowPlayingAsync(Track t) => Call("track.updateNowPlaying", TrackArgs(t), signed: true, post: true);
 
-    static Task ScrobbleAsync(Track t, DateTime startedUtc)
+    static async Task ScrobbleAsync(Track t, DateTime startedUtc)
     {
         var a = TrackArgs(t);
         a["timestamp"] = new DateTimeOffset(startedUtc).ToUnixTimeSeconds().ToString();
-        return Call("track.scrobble", a, signed: true, post: true);
+        try
+        {
+            await Call("track.scrobble", new(a), signed: true, post: true);
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException || ex is LastFmException { Code: 11 or 16 or 29 })
+        {
+            // нет сети или Last.fm временно недоступен — отправим позже
+            Enqueue(a);
+            throw;
+        }
+        await FlushQueueAsync();
     }
 
     static Dictionary<string, string> TrackArgs(Track t)
@@ -138,6 +181,64 @@ static class LastFm
     {
         try { await f(); }
         catch (Exception ex) { Paths.Trace("last.fm: " + ex.Message); }
+    }
+
+    // ------------------------------------------------------------------ очередь неотправленных
+
+    static readonly object queueLock = new();
+    static int flushing;
+
+    static List<Dictionary<string, string>> LoadQueue()
+    {
+        try { return File.Exists(QueueFile) ? JsonSerializer.Deserialize<List<Dictionary<string, string>>>(File.ReadAllText(QueueFile)) ?? [] : []; }
+        catch { return []; }
+    }
+
+    static void SaveQueue(List<Dictionary<string, string>> q)
+    {
+        try
+        {
+            if (q.Count == 0) File.Delete(QueueFile);
+            else File.WriteAllText(QueueFile, JsonSerializer.Serialize(q));
+        }
+        catch (Exception ex) { Paths.Trace("last.fm queue: " + ex.Message); }
+    }
+
+    static void Enqueue(Dictionary<string, string> a)
+    {
+        lock (queueLock)
+        {
+            var q = LoadQueue();
+            q.Add(a);
+            if (q.Count > 1000) q.RemoveRange(0, q.Count - 1000);
+            SaveQueue(q);
+        }
+    }
+
+    /// <summary>Отправить накопленное пачками по 50 (столько принимает track.scrobble). Старше 14 дней Last.fm не берёт.</summary>
+    static async Task FlushQueueAsync()
+    {
+        if (!Connected || Interlocked.Exchange(ref flushing, 1) == 1) return;
+        try
+        {
+            List<Dictionary<string, string>> q;
+            lock (queueLock) q = LoadQueue();
+            if (q.Count == 0) return;
+            long cutoff = DateTimeOffset.UtcNow.AddDays(-14).ToUnixTimeSeconds();
+            q.RemoveAll(a => !long.TryParse(a.GetValueOrDefault("timestamp"), out var ts) || ts < cutoff);
+            while (q.Count > 0)
+            {
+                var batch = q.Take(50).ToList();
+                var args = new Dictionary<string, string>();
+                for (int i = 0; i < batch.Count; i++)
+                    foreach (var kv in batch[i]) args[$"{kv.Key}[{i}]"] = kv.Value;
+                await Call("track.scrobble", args, signed: true, post: true);
+                q.RemoveRange(0, batch.Count);
+                lock (queueLock) SaveQueue(q);
+            }
+            lock (queueLock) SaveQueue(q);
+        }
+        finally { flushing = 0; }
     }
 
     // ------------------------------------------------------------------ API
@@ -166,7 +267,7 @@ static class LastFm
             {
                 int code = e.GetInt32();
                 if (code == 9) Disconnect(); // сессия отозвана
-                throw new Exception(doc.RootElement.TryGetProperty("message", out var m) ? $"Last.fm: {m.GetString()}" : $"Last.fm: ошибка {code}");
+                throw new LastFmException(code, doc.RootElement.TryGetProperty("message", out var m) ? $"Last.fm: {m.GetString()}" : $"Last.fm: ошибка {code}");
             }
             return doc.RootElement.Clone();
         }
@@ -188,18 +289,21 @@ static class LastFm
 }
 
 /// <summary>
-/// Статус в Discord («Слушает …») через локальный канал discord-ipc. Нужен Application ID
-/// с discord.com/developers — впишите его в AppId перед сборкой.
+/// Статус в Discord («Слушает …») через локальный канал discord-ipc.
+/// Application ID (discord.com/developers) берётся из keys.props при сборке;
+/// название приложения в Discord — то, что видно в профиле после «Слушает».
 /// </summary>
 static class DiscordPresence
 {
-    // TODO: Application ID приложения Discord (https://discord.com/developers/applications)
-    const string AppId = "";
+    static readonly string AppId = AppKeys.Get("DiscordAppId");
+    const string Logo = "https://raw.githubusercontent.com/danseraga-spec/taskbeat/main/docs/logo.png";
+    const string Site = "https://github.com/danseraga-spec/taskbeat";
 
     public static bool Configured => AppId.Length > 0;
     static NamedPipeClientStream? pipe;
     static Track? shown;
     static bool shownPlaying;
+    static DateTimeOffset shownStart;
     static DateTime lastAttempt;
     static readonly SemaphoreSlim gate = new(1, 1);
 
@@ -207,7 +311,7 @@ static class DiscordPresence
     {
         if (!Configured) return;
         AppHost.Player.Changed += () => _ = UpdateAsync();
-        var t = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromSeconds(15) };
+        var t = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromSeconds(5) };
         t.Tick += (_, _) => _ = UpdateAsync();
         t.Start();
     }
@@ -219,7 +323,10 @@ static class DiscordPresence
         var t = SettingsStore.Current.DiscordPresence ? p.Current : null;
         bool playing = t != null && p.IsPlaying;
         double pos = p.Position, dur = t?.Duration > 0 ? t.Duration : p.Duration;
-        if (!force && t == shown && playing == shownPlaying) return;
+        var start = DateTimeOffset.UtcNow.AddSeconds(-pos);
+        // после перемотки полоска времени в Discord разошлась бы с плеером
+        bool drift = playing && Math.Abs((start - shownStart).TotalSeconds) > 3;
+        if (!force && t == shown && playing == shownPlaying && !drift) return;
         if (!await gate.WaitAsync(0)) return;
         try
         {
@@ -227,24 +334,27 @@ static class DiscordPresence
             object? activity = t == null || !playing ? null : new
             {
                 type = 2, // «Слушает»
+                status_display_type = 2, // в списке участников: «Слушает <трек>», а не название приложения
                 details = Cut(t.Title),
                 state = Cut(t.Artist.Length > 0 ? t.Artist : "Taskbeat"),
                 timestamps = dur > 0 ? new
                 {
-                    start = DateTimeOffset.UtcNow.AddSeconds(-pos).ToUnixTimeMilliseconds(),
-                    end = DateTimeOffset.UtcNow.AddSeconds(dur - pos).ToUnixTimeMilliseconds(),
+                    start = start.ToUnixTimeMilliseconds(),
+                    end = start.AddSeconds(dur).ToUnixTimeMilliseconds(),
                 } : null,
                 assets = new
                 {
-                    large_image = t.CoverBig is { } c && c.StartsWith("http") ? c : "taskbeat",
-                    large_text = Cut(t.AlbumTitle ?? "Taskbeat"),
-                    small_image = "taskbeat",
+                    large_image = (t.CoverBig ?? t.Cover) is { } c && c.StartsWith("http") ? c : Logo,
+                    large_text = Cut(t.AlbumTitle is { Length: > 0 } al ? al : t.Title),
+                    small_image = Logo,
                     small_text = "Taskbeat",
                 },
+                buttons = new[] { new { label = "Taskbeat", url = Site } },
             };
             await SendAsync(1, new { cmd = "SET_ACTIVITY", nonce = Guid.NewGuid().ToString(), args = new { pid = Environment.ProcessId, activity } });
             shown = t;
             shownPlaying = playing;
+            shownStart = start;
         }
         catch (Exception ex)
         {
@@ -270,6 +380,9 @@ static class DiscordPresence
             pipe = c;
             await SendAsync(0, new { v = 1, client_id = AppId });
             await ReadAsync(); // READY
+            // новое подключение — Discord ничего не показывает, отправим статус заново
+            shown = null;
+            shownPlaying = false;
             return true;
         }
         return false;

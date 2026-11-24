@@ -12,6 +12,9 @@ dist/
 *.user
 *.suo
 
+# ключи
+app/keys.props
+
 # прочее
 *.log
 Thumbs.db

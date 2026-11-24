@@ -129,25 +129,23 @@ internal partial class AppSettingsPage : UserControl
             : L.T("В этой сборке Discord не настроен.");
     }
 
+    CancellationTokenSource? lastFmWait;
+
     async void LastFmConnectClick(object s, RoutedEventArgs e)
     {
+        if (lastFmWait != null) { lastFmWait.Cancel(); return; } // «Отмена» во время ожидания
         if (LastFm.Connected) { LastFm.Disconnect(); return; }
         LastFmConnect.IsEnabled = false;
         var err = await LastFm.BeginConnectAsync();
         LastFmConnect.IsEnabled = true;
         if (err != null) { LastFmText.Text = err; return; }
-        LastFmDone.Visibility = Visibility.Visible;
-        LastFmText.Text = L.T("В браузере откроется Last.fm — нажмите там «Разрешить», затем «Я разрешил» здесь.");
-    }
-
-    async void LastFmDoneClick(object s, RoutedEventArgs e)
-    {
-        LastFmDone.IsEnabled = false;
-        var err = await LastFm.FinishConnectAsync();
-        LastFmDone.IsEnabled = true;
-        if (err != null) { LastFmText.Text = err; return; }
-        LastFmDone.Visibility = Visibility.Collapsed;
+        LastFmText.Text = L.T("В браузере открылся Last.fm — нажмите там «Разрешить». Taskbeat подключится сам.");
+        LastFmConnect.Content = L.T("Отмена");
+        using var cts = lastFmWait = new CancellationTokenSource();
+        err = await LastFm.WaitConnectAsync(cts.Token);
+        lastFmWait = null;
         UpdateIntegrations();
+        if (!string.IsNullOrEmpty(err)) LastFmText.Text = err;
     }
 
     void DiscordClick(object s, RoutedEventArgs e)

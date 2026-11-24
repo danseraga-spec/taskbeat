@@ -111,9 +111,7 @@
                 <StackPanel>
                     <DockPanel>
                         <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
-                            <Button x:Name="LastFmConnect" Content="Подключить" Style="{StaticResource Pill}" Click="LastFmConnectClick"/>
-                            <Button x:Name="LastFmDone" Content="Я разрешил" Style="{StaticResource PillAccent}" Click="LastFmDoneClick" Margin="8,0,0,0" Visibility="Collapsed"/>
-                        </StackPanel>
+                            <Button x:Name="LastFmConnect" Content="Подключить" Style="{StaticResource Pill}" Click="LastFmConnectClick"/>                        </StackPanel>
                         <StackPanel>
                             <TextBlock Text="Last.fm" FontSize="14" FontWeight="SemiBold"/>
                             <TextBlock x:Name="LastFmText" FontSize="12.5" Foreground="{StaticResource Fg3}" TextWrapping="Wrap" Margin="0,2,12,0"/>

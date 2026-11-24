@@ -35,4 +35,12 @@
     <Resource Include="Assets\taskbeat.ico" />
   </ItemGroup>
 
+  <!-- ключи Last.fm и Discord: app/keys.props не в git (пример: keys.props.example) -->
+  <Import Project="keys.props" Condition="Exists('keys.props')" />
+  <ItemGroup>
+    <AssemblyMetadata Include="LastFmKey" Value="$(LastFmKey)" />
+    <AssemblyMetadata Include="LastFmSecret" Value="$(LastFmSecret)" />
+    <AssemblyMetadata Include="DiscordAppId" Value="$(DiscordAppId)" />
+  </ItemGroup>
+
 </Project>

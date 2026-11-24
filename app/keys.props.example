@@ -1,0 +1,10 @@
+<!-- Скопируйте в keys.props (он не попадает в git) и впишите свои ключи. -->
+<Project>
+  <PropertyGroup>
+    <!-- https://www.last.fm/api/account/create -->
+    <LastFmKey></LastFmKey>
+    <LastFmSecret></LastFmSecret>
+    <!-- https://discord.com/developers/applications → Application ID; название приложения = «Слушает …» в профиле -->
+    <DiscordAppId></DiscordAppId>
+  </PropertyGroup>
+</Project>
