@@ -101,6 +101,7 @@ static class LastFm
                 pendingToken = null;
                 Changed?.Invoke();
                 _ = SafeAsync(FlushQueueAsync);
+                if (playing is { } now) _ = SafeAsync(() => NowPlayingAsync(now)); // трек уже играет — показать сразу
                 return null;
             }
             catch (LastFmException ex) when (ex.Code == 14) { } // ещё не разрешили
@@ -262,7 +263,11 @@ static class LastFm
             : await Http.GetAsync(Api + "?" + string.Join("&", args.Select(k => k.Key + "=" + Uri.EscapeDataString(k.Value))));
         using (resp)
         {
-            var doc = JsonDocument.Parse(await resp.Content.ReadAsStringAsync());
+            string body = await resp.Content.ReadAsStringAsync();
+            // Last.fm может принять запрос, но отбросить трек (ignoredMessage) — пишем в журнал, чтобы было видно почему
+            if (method.StartsWith("track.") && body.Contains("\"ignoredMessage\"") && !body.Contains("\"ignoredMessage\":{\"code\":\"0\""))
+                Paths.Trace($"last.fm {method}: отброшено {(body.Length > 300 ? body[..300] : body)}");
+            var doc = JsonDocument.Parse(body);
             if (doc.RootElement.TryGetProperty("error", out var e))
             {
                 int code = e.GetInt32();
